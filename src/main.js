@@ -1,164 +1,106 @@
-import { createDecartClient, models, resolveFpsNumber } from '@decartai/sdk';
+import {createDecartClient,models,resolveFpsNumber} from '@decartai/sdk';
 import './style.css';
 import {installI18n} from './i18n.js';
 import {mountBilling,billing} from './billing.js';
+import {SessionLane,stallAction,inputSize,drawRegion} from './session-model.js';
 const $=id=>document.getElementById(id);
-const products=[
-{id:'tee',name:'雾白圆领 T 恤',category:'tops',color:'雾白',detail:'棉感 · 宽松短袖',prompt:'Substitute the upper body garment with an off-white plain cotton crew-neck short-sleeve t-shirt with a relaxed fit.'},
-{id:'hoodie',name:'鼠尾草绿卫衣',category:'tops',color:'浅绿',detail:'连帽 · 袋鼠口袋',prompt:'Substitute the upper body garment with a sage green pullover hoodie with long sleeves, drawstrings and a kangaroo pocket.'},
-{id:'shirt',name:'蓝色牛仔衬衫',category:'tops',color:'靛蓝',detail:'双口袋 · 纽扣闭合',prompt:'Substitute the upper body garment with a blue denim long-sleeve collared shirt, buttoned closed, with two chest pockets.'},
-{id:'jeans',name:'经典直筒牛仔裤',category:'bottoms',color:'靛蓝',detail:'中腰 · 直筒长裤',prompt:'Substitute the lower body garment with indigo blue straight-leg denim jeans with front pockets and visible seams.'},
-{id:'trousers',name:'沙色宽腿长裤',category:'bottoms',color:'沙色',detail:'宽腿 · 简洁剪裁',prompt:'Substitute the lower body garment with sand beige wide-leg tailored trousers with a clean waistband and front pleats.'},
-{id:'sneakers',name:'极简白色运动鞋',category:'shoes',color:'白色',detail:'低帮 · 鞋类实验',prompt:'Substitute the footwear with white low-top leather sneakers with white laces, a clean toe box and a thin rubber sole.'},
-];
-for(const p of products)p.image=`/products/${p.id}.png`;
-let selected=products[0],category='all',camera=null,portrait=null,rt=null,raf=0,epoch=0,busy=false,applying=false,selectionVersion=0,config=null,sessionTimer=0,frameTimer=0;
-const objectURLs=[];
-const promptDrafts=new Map();
-let requested=null;
-const draftKey=()=>selected.id+'|'+selected.image;
-function showPrompt(){ $('promptEditor').value=promptDrafts.get(draftKey())??selected.prompt; }
-function submitDraft(){const prompt=$('promptEditor').value.trim();if(!prompt){message('请填写提示词，或恢复默认提示词。',true);return false;}requested={...selected,prompt};selectionVersion++;return true;}
+const lane=new SessionLane(),products=[],drafts=new Map(),images=new Map(),objectURLs=[];
+let selected=null,viewIndex=0,category='all',config=null,source=null,feed=null,cameraEpoch=0,cameraPending=false,releaseLock=null;
+let frameId=0,raf=0,lastCameraFrame=0,lastRemoteFrame=0,remoteFrameId=0,remoteRaf=0,remoteFrames=0,fpsStart=0;
+let hasRemoteFrame=false,connectingAt=0,reconnectingAt=0,requestBusy=false,activeView='ai',sent=null,warningAt=0,sendState='待开始';
+let permissionTimer=0,sessionTimer=0,limitNotice=0,stopRequested=false,connectionState='未连接',cameraState='未开启';
+const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+const currentView=()=>selected?.views?.[viewIndex];
+const draftKey=()=>selected?selected.id+'|'+currentView().image:'';
+const draftPrompt=()=>drafts.get(draftKey())??currentView()?.prompt??'';
+const setText=(id,text)=>{$(id).textContent=text;};
+const safeStorage={get(key){try{return localStorage.getItem(key);}catch{return null;}},set(key,value){try{localStorage.setItem(key,value);}catch{}}};
 document.querySelector('#app').innerHTML=`
-<header><a class="brand" href="/">anywear<span class="brand-dot"></span></a><span class="header-caption">你的衣橱，换一个看法。</span><span class="local-tag">◉ 本地试衣间</span></header>
-<main><section class="wardrobe"><div class="eyebrow">THE EDIT / 01</div><h1>先心动，再试穿。</h1><p class="intro">选一件喜欢的，让镜头里的你换个造型。</p>
-<div class="tabs" role="tablist" aria-label="商品分类"><button class="active" data-category="all" role="tab" aria-selected="true">全部</button><button data-category="tops" role="tab" aria-selected="false">上衣</button><button data-category="bottoms" role="tab" aria-selected="false">裤子</button><button data-category="shoes" role="tab" aria-selected="false">鞋子 <small>实验</small></button></div>
-<div id="products" class="products"></div><div id="referenceViews" class="reference-views" hidden></div><p id="referenceNote" class="source" hidden></p>
-<div class="upload-box"><div><strong>试试你自己的衣服</strong><p>白底、单件、无人物的商品照片效果更好</p></div><button id="upload" class="secondary">＋ 上传图片</button><input id="file" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
-<div class="upload-options"><label>上传品类 <select id="uploadCategory"><option value="tops">上衣</option><option value="bottoms">裤子</option><option value="shoes">鞋子（实验性）</option><option value="outfit">整套穿搭（实验性）</option></select></label></div>
-<p class="source">本机商品图仅用于本地试穿，未上传公共仓库；另有原创示意图。含模特的参考图可能影响还原，文字、标志及背面细节需要实测。</p>
-<details><summary>接口与素材说明 ↗</summary><p>实时试衣使用 Decart 官方 JS SDK / WebRTC。视频和选中参考图会发送至 Decart，不保存在本地后端。上衣、裤子、鞋类均出现在官方提示词指南中；鞋类效果依赖脚部完整入镜，标为实验性。</p><p>每次替换一个品类，不保证保留之前选择的其他单品。本 Demo 不做尺码测量或合身度保证。</p><a href="https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting" target="_blank" rel="noreferrer">查看官方品类与提示词指南</a></details>
-</section>
-<section class="fitting"><div class="fitting-heading"><div><div class="eyebrow">YOUR FITTING ROOM</div><h2>此刻，试穿一下。</h2></div><span id="apiStatus" class="status">检查配置中</span></div>
-<div class="mirror"><video id="output" autoplay playsinline muted hidden></video><div id="empty" class="empty"><div class="mirror-mark">a.</div><h3>这里，留给新的你。</h3><p>开启摄像头，走进你的实时试衣间。</p><span class="outline-person">♧</span></div><div class="mirror-top"><span id="videoBadge">尚未开启</span><span>9:16</span></div><div id="loading" class="loading" hidden><span class="spinner"></span><span id="loadingText">连接中…</span></div><div id="previewWrap" class="preview" hidden><video id="preview" autoplay playsinline muted></video><span>原始摄像头</span></div><div class="mirror-bottom"><span id="mirrorHint">光线充足 · 正面站立 · 保持身体入镜</span></div></div>
-<div class="selection-line"><span class="selection-dot"></span><div><small>当前选择</small><strong id="selectedName"></strong></div><span id="applyStatus">待开始</span></div>
-<section class="prompt-panel"><label for="promptEditor">试衣提示词 · Prompt</label><p>默认提示词可直接修改。选商品或正反面只更新草稿，点击应用后才发送；编辑期间当前会话继续计费。</p><textarea id="promptEditor" rows="6" spellcheck="false"></textarea><div class="prompt-actions"><button id="resetPrompt" class="secondary">恢复默认</button><button id="applyPrompt" class="primary">应用并实时试衣</button></div><p id="promptState" role="status">草稿 · 尚未应用</p><p>每次发送一张参考图；正反面需分别选择并应用，不会自动融合。</p></section><div class="controls"><button id="start" class="primary">开启实时试衣 <span>↗</span></button><button id="stop" class="secondary" disabled>结束</button></div>
-<div class="utility"><button id="previewOnly">仅预览摄像头</button><button id="checkApi">检查 API</button><span id="quality">标准模式</span></div>
-<div id="message" class="message" role="status" aria-live="polite">请允许浏览器使用摄像头。点击实时试衣后，视频将发送至 Decart 并按账户规则计费；每次最多 5 分钟。</div>
-<details class="help"><summary>摄像头打不开？</summary><p>建议使用 Chrome 打开 localhost。点击地址栏摄像头图标允许访问；在「系统设置 → 隐私与安全性 → 摄像头」中允许浏览器，关闭正在占用摄像头的会议软件，再重试。裤子和鞋子需要向后站，让腿和脚完整入镜。</p></details>
-</section></main><footer><span>LOOK GOOD. FEEL LIKE YOU.</span><span>Powered by Decart Lucy VTON · Local demo</span></footer>`;
-function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error);}
-function loading(show,text=''){ $('loading').hidden=!show;if(text)$('loadingText').textContent=text; }
+<header><a class="brand" href="/">anywear<span>●</span></a><span class="header-label">实时试衣间</span><span id="apiStatus" class="status">检查配置中</span></header>
+<main>
+<aside class="wardrobe"><div class="section-title"><h1>你的商品</h1><span id="productCount"></span></div>
+<div class="tabs" role="tablist" aria-label="商品分类"><button data-category="all" role="tab" aria-selected="true">全部</button><button data-category="tops" role="tab" aria-selected="false">上衣</button><button data-category="bottoms" role="tab" aria-selected="false">裤子</button><button data-category="shoes" role="tab" aria-selected="false">鞋子 <small>实验</small></button></div>
+<div id="catalogMessage" class="note" role="status">加载本机商品…</div><div id="products" class="products"></div>
+<section class="editor"><div class="section-title"><h2>准备应用</h2><button id="enlarge" class="text-button" disabled>查看大图</button></div><strong id="selectedName">—</strong><div id="referenceViews" class="reference-views"></div><p id="referenceNote" class="note"></p>
+<details class="prompt-details" open><summary>试衣提示词 · Prompt <span id="promptState">草稿</span></summary><label class="sr-only" for="promptEditor">试衣提示词 · Prompt</label><textarea id="promptEditor" rows="6" spellcheck="false" disabled></textarea><div class="prompt-footer"><button id="resetPrompt" class="text-button">恢复默认</button><span id="promptLength"></span></div><p class="note">选图和编辑只更新草稿，点击应用才发送。活动会话在编辑时仍计费。</p></details></section>
+<details class="upload-panel"><summary>上传其他商品</summary><label>上传品类 <select id="uploadCategory"><option value="tops">上衣</option><option value="bottoms">裤子</option><option value="shoes">鞋子（实验性）</option><option value="outfit">整套穿搭（实验性）</option></select></label><button id="upload" class="secondary">＋ 上传图片</button><input id="file" type="file" accept="image/jpeg,image/png,image/webp" hidden><p class="note">单件、清晰、无人物的商品图更好。上传只保留在当前页面。</p></details>
+<details class="help"><summary>接入与素材说明</summary><p>视频和选中参考图会发送至 Decart。本机摄影来自用户，未核验再分发许可，不进入公共仓库。每次发送单张图，不保证此前衣服保留；不做尺码测量。</p><a href="https://docs.platform.decart.ai/models/realtime/virtual-try-on" target="_blank" rel="noreferrer">官方接口说明 ↗</a></details>
+</aside>
+<section class="fitting"><div class="camera-toolbar"><label>摄像头 <select id="cameraSelect"><option value="">授权后选择摄像头</option></select></label><button id="refreshDevices" class="text-button">刷新设备</button><label>取景 <select id="framing"><option value="portrait">竖屏裁切</option><option value="full">完整取景</option></select></label><label class="check-label"><input type="checkbox" id="mirrorDisplay">显示镜像</label></div>
+<div class="stage"><div class="mirror"><video id="inputVideo" autoplay playsinline muted hidden></video><video id="output" autoplay playsinline muted hidden></video><div id="empty" class="empty"><h2>先预览，再试衣</h2><p>选择 iPhone 摄像头，检查光线和站位。</p><button id="previewCenter" class="primary">免费预览摄像头</button></div><div class="mirror-top"><span id="videoBadge">未开启</span><span id="shapeBadge">9:16</span></div><div id="loading" class="loading" hidden><span class="spinner"></span><span id="loadingText"></span></div><div id="previewWrap" class="preview" hidden><video id="preview" autoplay playsinline muted></video><span>原画</span></div><div class="mirror-bottom"><span id="mirrorHint">保持上半身完整入镜</span></div></div></div>
+<div class="session-bar"><div><small>已发送</small><strong id="sentName">—</strong></div><span id="applyStatus">待开始</span><div class="view-buttons"><button id="showAI" aria-pressed="true">AI</button><button id="showOriginal" aria-pressed="false">原画</button><label><input id="pipToggle" type="checkbox" checked>小窗</label></div></div>
+<div class="action-bar"><button id="previewOnly" class="secondary">免费预览</button><button id="start" class="primary" disabled>开始实时试衣</button><button id="stop" class="stop" disabled>结束</button></div>
+<div class="live-summary"><span><small>本次估算</small> <strong id="liveCost">$0.0000</strong></span><span id="liveDuration">0 s</span><span id="quality">标准模式</span><button id="billingToggle" class="text-button">费用与记录</button></div>
+<div id="message" class="message" role="status" aria-live="polite">先免费预览，确认取景后开始。视频和商品图会发送至 Decart。</div>
+<div class="diagnostics"><span id="cameraState">未开启</span><span id="connectionState">未连接</span><span id="metrics">—</span><button id="checkApi" class="text-button">检查 API</button></div>
+<details class="camera-help"><summary>iPhone 摄像头连接指引</summary><p>锁定并固定 iPhone，后置镜头朝向你。在浏览器和 Mac 隐私设置中允许摄像头，再刷新设备。解锁、来电或暂停可能中断画面；结束后重新锁定并预览。关闭系统人像虚化、自动追踪等效果可避免取景变化。</p></details>
+<video id="sourceVideo" autoplay playsinline muted class="source-video"></video>
+</section></main>
+<dialog id="imageDialog"><button id="closeImage" class="secondary">关闭</button><h2 id="imageTitle"></h2><img id="largeImage" alt="商品参考图"><p id="largePrompt" class="note"></p></dialog>`;
+function message(text,error=false){setText('message',text);$('message').classList.toggle('error',error);}
+function loading(show,text=''){ $('loading').hidden=!show;if(text)setText('loadingText',text);}
+function setState(cameraText=cameraState,connectionText=connectionState){cameraState=cameraText;connectionState=connectionText;setText('cameraState',cameraState);setText('connectionState',connectionState);}
 function renderProducts(){
- const list=products.filter(p=>category==='all'||p.category===category);
- $('products').replaceChildren(...list.map(p=>{
- const button=document.createElement('button');button.className=`product ${selected.id===p.id?'selected':''}`;button.setAttribute('aria-pressed',String(selected.id===p.id));
- const image=document.createElement('img');image.src=p.image;image.alt=p.name;image.loading='lazy';
- const art=document.createElement('div');art.className='product-art';art.append(image);
- const badge=document.createElement('span');badge.className='product-badge';badge.textContent=p.local?'本机商品图':p.category==='shoes'?'实验性':p.upload?'你的上传':'原创示意';art.append(badge);
- const tick=document.createElement('span');tick.className='tick';tick.textContent='✓';art.append(tick);
- const name=document.createElement('strong');name.textContent=p.name;
- const detail=document.createElement('span');detail.className='product-detail';detail.textContent=p.detail;
- button.append(art,name,detail);button.onclick=()=>select(p);return button;
- }));
- $('selectedName').textContent=selected.name;
- $('referenceViews').hidden=!(selected.views?.length>1);
- $('referenceViews').replaceChildren(...(selected.views||[]).map(view=>{
-  const button=document.createElement('button');button.className='secondary';button.textContent=view.label;button.setAttribute('aria-pressed',String(selected.image===view.image));button.onclick=()=>{selected.image=view.image;selected.prompt=view.prompt;renderProducts();showPrompt();$('promptState').textContent='草稿 · 尚未应用';};return button;
- }));
- $('referenceNote').hidden=!selected.local&&selected.category!=='outfit';
- $('referenceNote').textContent=selected.views?.length>1?'正面与背面分别发送单张参考图。转身时可手动切换；这不是自动多视角重建，背面还原不保证。':selected.category==='outfit'?'整套穿搭实验：替换参考图中的衣服组合，需要全身入镜；人物外观与服装细节可能出现偏差。':'本机原始商品图；含模特图片尚未去人物。只替换所选品类，效果与图案细节需实测。';
- $('mirrorHint').textContent=selected.category==='shoes'?'鞋类实验 · 请让双脚完整入镜':selected.category==='outfit'?'整套实验 · 请让全身完整入镜':selected.category==='bottoms'?'请向后站 · 让腰部和双腿完整入镜':'光线充足 · 正面站立 · 保持上半身入镜';
+ const list=products.filter(p=>category==='all'||p.category===category);$('products').replaceChildren(...list.map(p=>{const b=document.createElement('button');b.className='product';b.setAttribute('aria-pressed',String(selected?.id===p.id));const art=document.createElement('div');art.className='product-art';const img=document.createElement('img');img.src=p.views[p===selected?viewIndex:0].image;img.alt=p.name;art.append(img);if(p.category==='shoes'){const badge=document.createElement('span');badge.className='product-badge';badge.textContent='实验性';art.append(badge);}const name=document.createElement('strong');name.textContent=p.name;const detail=document.createElement('small');detail.textContent=p.detail;b.append(art,name,detail);b.onclick=()=>select(p);return b;}));
+ setText('productCount',String(products.length));
+ if(!selected)return;setText('selectedName',selected.name);$('promptEditor').disabled=false;$('enlarge').disabled=false;
+ $('referenceViews').replaceChildren(...selected.views.map((v,i)=>{const b=document.createElement('button');b.textContent=v.label;b.className='secondary';b.setAttribute('aria-pressed',String(i===viewIndex));b.onclick=()=>{viewIndex=i;renderProducts();showDraft();};return b;}));$('referenceViews').hidden=selected.views.length<2;
+ setText('referenceNote',selected.views.length>1?'正反面分别应用单张图；背面不保证准确。':selected.category==='shoes'?'鞋类实验：需要双脚完整入镜。':'只替换所选品类，含模特原图的细节需要实测。');
+ setText('mirrorHint',{tops:'保持上半身完整入镜',bottoms:'让腰部和双腿完整入镜',shoes:'鞋类实验 · 双脚完整入镜',outfit:'整套实验 · 全身完整入镜'}[selected.category]);
 }
-function select(p){selected=p;renderProducts();showPrompt();$('promptState').textContent='草稿 · 尚未应用';if(!rt)$('applyStatus').textContent='待开始';}
-async function imageBlob(p){if(p.blob)return p.blob;const r=await fetch(p.image);if(!r.ok)throw Error('商品参考图加载失败');return r.blob();}
-async function applyLatest(){
- if(applying||!rt)return;applying=true;const connection=rt;const run=epoch;
- try{
-  let version;
-  do{version=selectionVersion;const item=requested;$('applyStatus').textContent='发送参考图…';
-   const blob=await imageBlob(item);if(run!==epoch||rt!==connection)return;
-   await connection.set({image:blob,prompt:item.prompt,enhance:false});
-   if(run!==epoch||rt!==connection)return;
-   if(version===selectionVersion){$('applyStatus').textContent='参考图已发送';message(`已向 Decart 发送「${item.name}」；请在 AI 视频中观察实际换装效果。${item.category==='shoes'?'鞋类为实验性，请保持双脚入镜。':''}`);}
-  }while(version!==selectionVersion);
- }catch(e){if(run===epoch){$('applyStatus').textContent='切换失败';message(friendly(e),true);}}
- finally{applying=false;}
-}
-function friendly(e){
- if(e.name==='NotAllowedError')return '摄像头权限被拒绝。请在地址栏和 Mac 系统设置中允许摄像头，然后重试。';
- if(e.name==='NotFoundError')return '未发现摄像头，请连接摄像头后重试。';
- if(e.name==='NotReadableError')return '摄像头无法读取，可能被其他应用占用，请关闭会议或录制软件后重试。';
- // Keep SDK request URLs / credentials out of UI and logs.
- const code=String(e.code||'');
- if(/AUTH|TOKEN|UNAUTHORIZED/.test(code))return 'Decart 身份验证失败，请检查密钥、令牌和账户权限。';
- if(/QUOTA|LIMIT|CREDIT/.test(code))return 'Decart 额度或并发限制，请检查账户余额并结束其他会话。';
- if(/CONNECT|TIMEOUT|NETWORK/.test(code))return '实时连接失败或超时，请检查网络、防火墙和 Decart 服务状态后重试。';
- return e.safeMessage || `无法完成操作${code?'（'+code+'）':''}。请检查网络、账户额度和摄像头权限后重试。`;
-}
-async function openCamera(run){
- if(camera)return;
- if(!navigator.mediaDevices?.getUserMedia){const e=Error();e.safeMessage='当前浏览器不支持摄像头，请用 Chrome 打开 http://localhost:3000。';throw e;}
- const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:1280},height:{ideal:720},frameRate:{ideal:25}}});
- if(run!==epoch){stream.getTracks().forEach(t=>t.stop());return;}
- camera=stream;const video=$('preview');video.srcObject=stream;await video.play();$('previewWrap').hidden=false;$('stop').disabled=false;
- for(const track of camera.getTracks())track.onended=()=>{if(camera){stop();message('摄像头已断开，请重新开启。',true);}};
-}
-function croppedStream(){
- const canvas=document.createElement('canvas');canvas.width=720;canvas.height=1280;const ctx=canvas.getContext('2d');const v=$('preview');
- let last=0;const fps=resolveFpsNumber(models.realtime(config.model).fps);
- function draw(now){if(now-last>=1000/fps&&v.videoWidth){last=now;const w=v.videoWidth,h=v.videoHeight,ratio=9/16;const sw=Math.min(w,h*ratio),sh=sw/ratio;ctx.save();ctx.translate(720,0);ctx.scale(-1,1);ctx.drawImage(v,(w-sw)/2,(h-sh)/2,sw,sh,0,0,720,1280);ctx.restore();}raf=requestAnimationFrame(draw);}
- draw(performance.now());return canvas.captureStream(fps);
-}
-async function token(){const res=await fetch('/api/token',{method:'POST',headers:{'X-Anywear-Request':'1'}});const data=await res.json();if(!res.ok){const e=Error();e.safeMessage=data.error;throw e;}return data.apiKey;}
-async function start(){
- if(busy||rt)return;if(!submitDraft())return;$('promptState').textContent='已提交当前草稿';billing.begin(config?.model||'lucy-vton-latest');busy=true;const run=++epoch;$('start').disabled=true;$('stop').disabled=false;loading(true,'等待摄像头授权…');
- try{
-  if(!config?.configured){const e=Error();e.safeMessage='后端未配置密钥，请填写 .env 并重启。';throw e;}
-  await openCamera(run);if(run!==epoch)return;
-  portrait=croppedStream();const p=requested,version=selectionVersion;const blob=await imageBlob(p);if(run!==epoch)return;
-  loading(true,'正在连接 Decart 实时试衣…');$('videoBadge').textContent='连接中 · 尚无 AI 输出';
-  const client=createDecartClient({apiKeyProvider:token});
-  const connection=await client.realtime.connect(portrait,{
-   model:models.realtime(config.model),mirror:false,
-   initialState:{image:blob,prompt:{text:p.prompt,enhance:false}},
-   onRemoteStream:stream=>{if(run===epoch)billing.state('generating');if(run!==epoch){stream.getTracks().forEach(t=>t.stop());return;}const video=$('output');video.srcObject=stream;video.hidden=false;$('empty').hidden=true;video.play().catch(()=>{});loading(true,'已收到远端流，等待第一帧…');
-    const ready=()=>{if(run!==epoch)return;clearTimeout(frameTimer);loading(false);$('videoBadge').textContent='● AI 实时输出';};
-    if(video.requestVideoFrameCallback)video.requestVideoFrameCallback(ready);else video.onloadeddata=ready;
-    frameTimer=setTimeout(()=>{if(run===epoch){loading(false);message('已收到远端流，但尚未解码到画面。请检查网络，或结束后重试。',true);}},30000);
-   },
-   onConnectionChange:state=>{if(run!==epoch)return;billing.state(state);const labels={connecting:'连接中',connected:'已连接',generating:'生成中',reconnecting:'重连中',disconnected:'已断开'};$('apiStatus').textContent=`API · ${labels[state]||state}`;if(state==='reconnecting'){loading(true,'网络波动，正在重新连接…');$('output').hidden=true;$('videoBadge').textContent='重连中 · 暂停显示';}if(state==='disconnected'){$('output').hidden=true;$('videoBadge').textContent='已断开 · 暂无实时输出';loading(false);}if(state==='generating'||state==='connected'){$('output').hidden=!$('output').srcObject;loading(false);}},
-   onConnectionQuality:report=>{if(run===epoch)$('quality').textContent='网络 · '+({good:'良好',fair:'一般',poor:'较差',critical:'不稳定'}[report.quality]||report.quality);},
-   onQueuePosition:queue=>{if(run===epoch)loading(true,`等待服务空位 · 队列 ${queue.position}`);}
-  });
-  if(run!==epoch){connection.disconnect();return;}rt=connection;
-  rt.on('error',e=>{if(run===epoch)message(friendly(e),true);});
-  rt.on('generationTick',data=>{if(run===epoch)billing.report(data.seconds);});
-  rt.on('generationEnded',data=>{if(run===epoch)billing.report(data.seconds);});
-  rt.on('sessionEnded',()=>{if(run===epoch){stop();message('Decart 已结束本次会话。可以重新开启试衣。');}});
-  $('applyStatus').textContent='参考图已发送';message(`已连接 ${config.model}。参考图已发送；请观察实际 AI 输出，选择单品或编辑提示词后，点击应用更新。`);
-  if(version!==selectionVersion)await applyLatest();
-  sessionTimer=setTimeout(()=>{if(run===epoch){stop();message(`已达到本次 ${config.maxSessionSeconds} 秒上限，会话已停止。`);}},config.maxSessionSeconds*1000);
- }catch(e){if(run===epoch){stop('失败待核对');message(friendly(e),true);}}
- finally{if(run===epoch){busy=false;$('start').disabled=!!rt;}}
-}
-function stop(result='已结束'){
- billing.end(result);
- ++epoch;clearTimeout(sessionTimer);clearTimeout(frameTimer);cancelAnimationFrame(raf);rt?.disconnect();rt=null;
- portrait?.getTracks().forEach(t=>t.stop());portrait=null;camera?.getTracks().forEach(t=>{t.onended=null;t.stop();});camera=null;
- $('output').srcObject=null;$('output').hidden=true;$('preview').srcObject=null;$('previewWrap').hidden=true;$('empty').hidden=false;
- busy=false;loading(false);$('start').disabled=false;$('stop').disabled=true;$('videoBadge').textContent='尚未开启';$('apiStatus').textContent=config?.configured?'密钥已配置':'密钥未配置';$('applyStatus').textContent='待开始';$('quality').textContent='标准模式';
-}
-$('promptEditor').oninput=()=>{promptDrafts.set(draftKey(),$('promptEditor').value);$('promptState').textContent='草稿 · 尚未应用';};
-$('resetPrompt').onclick=()=>{promptDrafts.delete(draftKey());showPrompt();$('promptState').textContent='草稿 · 尚未应用';};
-$('applyPrompt').onclick=async()=>{if(busy||applying){message('正在连接或发送，请稍后再应用。');return;}if(rt){if(!submitDraft())return;$('promptState').textContent='已提交当前草稿';await applyLatest();}else await start();};
-$('start').onclick=start;$('stop').onclick=()=>{stop();message('会话已结束，摄像头已关闭。');};
-$('previewOnly').onclick=async()=>{if(busy||rt)return;busy=true;const run=++epoch;$('start').disabled=true;$('stop').disabled=false;try{await openCamera(run);if(run!==epoch)return;loading(false);$('videoBadge').textContent='仅摄像头预览 · 无 AI';message('右下角是原始摄像头。尚未连接 Decart，不会进行换装。');}catch(e){if(run===epoch){stop();message(friendly(e),true);}}finally{if(run===epoch){busy=false;$('start').disabled=false;}}};
-$('checkApi').onclick=async()=>{const b=$('checkApi');b.disabled=true;try{await token();$('apiStatus').textContent='API 令牌验证通过';message('Decart 已成功签发短期令牌。尚未打开视频生成会话；点击「开启实时试衣」验证画面。');}catch(e){$('apiStatus').textContent='API 验证失败';message(friendly(e),true);}finally{b.disabled=false;}};
-for(const tab of document.querySelectorAll('[data-category]'))tab.onclick=()=>{category=tab.dataset.category;for(const t of document.querySelectorAll('[data-category]')){t.classList.toggle('active',t===tab);t.setAttribute('aria-selected',String(t===tab));}renderProducts();};
-$('upload').onclick=()=>$('file').click();
-$('file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{
- if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){message('请上传 10MB 以内的 JPEG、PNG 或 WebP 商品图。',true);return;}
- const bitmap=await createImageBitmap(file);const min=Math.min(bitmap.width,bitmap.height);bitmap.close();
- const c=$('uploadCategory').value,url=URL.createObjectURL(file);objectURLs.push(url);
- const region={tops:'upper body garment',bottoms:'lower body garment',shoes:'footwear',outfit:'outfit'}[c];
- const item={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),category:c,image:url,blob:file,upload:true,detail:'你的商品图 · 本次页面有效',prompt:`Substitute the ${region} with the item in the reference image, matching its visible color, shape and details.`};products.unshift(item);category='all';document.querySelector('[data-category="all"]').click();select(item);if(min<512)message('图片已上传，但小于 512px，建议使用更清晰的白底商品图。');
- }catch{message('无法读取图片，请选择有效的 JPEG、PNG 或 WebP。',true);}finally{e.target.value='';}};
+function showDraft(){$('promptEditor').value=draftPrompt();updateDraftState();}
+function updateDraftState(){const text=$('promptEditor').value;setText('promptLength',String(text.length));const same=sent&&selected?.id===sent.id&&currentView()?.image===sent.image&&text.trim()===sent.prompt;setText('promptState',same?'与已发送一致':'草稿 · 未发送');updateButtons();}
+function select(p){selected=p;viewIndex=0;renderProducts();showDraft();}
+function updateButtons(){const blocked=cameraPending||lane.pending||requestBusy;const live=!!lane.connection;const image=currentView();const ready=!!image&&images.get(image.image)?.ok===true&&!!$('promptEditor').value.trim();$('start').disabled=blocked||!ready||!config?.configured||(!feed&&!live);setText('start',live?'应用修改':'开始实时试衣');$('previewOnly').disabled=blocked||live;$('previewCenter').disabled=blocked;$('stop').disabled=!source&&!cameraPending&&!lane.pending&&!live;for(const id of ['cameraSelect','framing','refreshDevices'])$(id).disabled=blocked||live;$('showAI').disabled=!hasRemoteFrame;setText('applyStatus',sendState);}
+async function preload(view){if(images.has(view.image))return images.get(view.image);try{const r=await fetch(view.image);if(!r.ok)throw Error();const blob=await r.blob();const bitmap=await createImageBitmap(blob);bitmap.close();const item={ok:true,blob};images.set(view.image,item);return item;}catch{const item={ok:false};images.set(view.image,item);return item;}}
+async function loadCatalog(){try{const r=await fetch('/api/local-products');if(!r.ok)throw Error();const data=await r.json();products.push(...data.products);if(!products.length){setText('catalogMessage','本机未安装商品图。请将你的商品照片放入 src/local-products，或上传图片。');updateButtons();return;}select(products.find(p=>p.id==='local-pride')||products[0]);setText('catalogMessage','正在准备参考图…');await Promise.all(products.flatMap(p=>p.views.map(preload)));setText('catalogMessage',products.some(p=>p.views.some(v=>!images.get(v.image)?.ok))?'部分参考图加载失败，请检查文件后刷新。':'');$('catalogMessage').hidden=!$('catalogMessage').textContent;updateButtons();}catch{setText('catalogMessage','本机商品列表未加载，请重启本地服务。');}}
+async function acquireLock(){if(releaseLock)return;if(!navigator.locks){throw Object.assign(Error(),{safeMessage:'请用新版 Chrome 打开，当前浏览器不支持单会话保护。'});}await new Promise((resolve,reject)=>{navigator.locks.request('anywear-active-camera',{ifAvailable:true},lock=>{if(!lock){reject(Object.assign(Error(),{safeMessage:'其他标签页正在使用试衣间，请先结束那个会话。'}));return;}return new Promise(release=>{releaseLock=release;resolve();});}).catch(reject);});}
+function releaseIfIdle(){if(!source&&!cameraPending&&!lane.pending&&!lane.connection){releaseLock?.();releaseLock=null;}}
+async function refreshDevices(){if(!navigator.mediaDevices?.enumerateDevices)return;const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');const current=$('cameraSelect').value;const preferred=safeStorage.get('anywear-camera');$('cameraSelect').replaceChildren(...devices.map((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'摄像头 '+(i+1);return o;}));const choice=devices.find(d=>d.deviceId===current)||devices.find(d=>d.deviceId===preferred)||devices.find(d=>/iphone/i.test(d.label))||devices[0];if(choice)$('cameraSelect').value=choice.deviceId;else{const o=document.createElement('option');o.textContent='未发现摄像头';o.value='';$('cameraSelect').append(o);}}
+function disposeCamera(){cameraEpoch++;if(frameId)$('sourceVideo').cancelVideoFrameCallback?.(frameId);cancelAnimationFrame(raf);source?.getTracks().forEach(t=>{t.onended=null;t.onmute=null;t.onunmute=null;t.stop();});source=null;feed?.getTracks().forEach(t=>t.stop());feed=null;for(const id of ['sourceVideo','inputVideo','preview'])$(id).srcObject=null;clearTimeout(permissionTimer);}
+function prepareFeed(){feed?.getTracks().forEach(t=>t.stop());const v=$('sourceVideo'),mode=$('framing').value;const size=inputSize(mode,v.videoWidth,v.videoHeight);canvas.width=size.width;canvas.height=size.height;const fps=resolveFpsNumber(models.realtime(config?.model||'lucy-vton-latest').fps);feed=canvas.captureStream(fps);$('inputVideo').srcObject=feed;$('preview').srcObject=feed;$('inputVideo').play().catch(()=>{});$('preview').play().catch(()=>{});setText('shapeBadge',mode==='portrait'?'9:16':'完整取景');return fps;}
+function drawInput(){const v=$('sourceVideo');if(!v.videoWidth)return;const r=drawRegion($('framing').value,v.videoWidth,v.videoHeight,canvas.width,canvas.height);ctx.fillStyle='#121611';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(v,r.sx,r.sy,r.sw,r.sh,r.dx,r.dy,r.dw,r.dh);}
+function watchSource(run){const v=$('sourceVideo');let previous=-1;const next=()=>{if(run!==cameraEpoch||!source)return;if(v.currentTime!==previous){previous=v.currentTime;lastCameraFrame=performance.now();drawInput();}if(v.requestVideoFrameCallback)frameId=v.requestVideoFrameCallback(next);else raf=requestAnimationFrame(next);};next();}
+async function previewCamera(){if(cameraPending||lane.pending||lane.connection)return;cameraPending=true;const run=++cameraEpoch;updateButtons();loading(true,'等待摄像头授权…');setState('授权中');permissionTimer=setTimeout(()=>{if(run===cameraEpoch)message('请在浏览器和 Mac 设置中允许摄像头；可点击结束取消。');},30000);
+ try{await acquireLock();if(run!==cameraEpoch)return;const model=models.realtime(config?.model||'lucy-vton-latest');const choice=$('cameraSelect').value;const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{...(choice?{deviceId:{exact:choice}}:{}),width:{ideal:model.width},height:{ideal:model.height},frameRate:model.fps}});if(run!==cameraEpoch){stream.getTracks().forEach(t=>t.stop());return;}source=stream;const v=$('sourceVideo');v.srcObject=stream;await v.play();if(run!==cameraEpoch)return;await refreshDevices();if(run!==cameraEpoch)return;const actual=stream.getVideoTracks()[0].getSettings();if(actual.deviceId){$('cameraSelect').value=actual.deviceId;safeStorage.set('anywear-camera',actual.deviceId);}prepareFeed();lastCameraFrame=performance.now();watchSource(run);for(const t of source.getVideoTracks()){t.onended=()=>stop('摄像头已断开，请重新预览。',true);t.onmute=()=>{lastCameraFrame=Math.min(lastCameraFrame,performance.now()-5000);setState('摄像头暂停');};t.onunmute=()=>{lastCameraFrame=performance.now();setState('预览中');};}setState('预览中');activeView='original';showVideo();message('免费预览已开启。确认画面和站位后，点击开始实时试衣。');}
+ catch(e){if(run===cameraEpoch){disposeCamera();setState('摄像头失败');message(friendly(e),true);}}
+ finally{clearTimeout(permissionTimer);cameraPending=false;loading(false);releaseIfIdle();updateButtons();}}
+function showVideo(){const live=!!lane.connection||lane.pending;const original=!!feed&&(activeView==='original'||!hasRemoteFrame);$('inputVideo').hidden=!original;$('output').hidden=!hasRemoteFrame||original;$('empty').hidden=!!feed;$('previewWrap').hidden=!live||!hasRemoteFrame||original||!$('pipToggle').checked;setText('videoBadge',original?(live?'原画 · 会话仍计费':'免费摄像头预览'):hasRemoteFrame?'● AI 实时输出':'未开启');$('showAI').setAttribute('aria-pressed',String(activeView==='ai'));$('showOriginal').setAttribute('aria-pressed',String(activeView==='original'));}
+function stopRemoteWatch(){if(remoteFrameId)$('output').cancelVideoFrameCallback?.(remoteFrameId);cancelAnimationFrame(remoteRaf);remoteFrameId=0;remoteRaf=0;}
+function watchRemote(run){stopRemoteWatch();const v=$('output');let previous=-1;const next=()=>{if(!lane.current(run))return;if(v.currentTime!==previous&&v.readyState>=2){previous=v.currentTime;lastRemoteFrame=performance.now();remoteFrames++;if(!hasRemoteFrame){hasRemoteFrame=true;clearTimeout(sessionTimer);loading(false);billing.metric('firstFrameMs',Math.round(lastRemoteFrame-connectingAt));activeView='ai';showVideo();updateButtons();}if(lastRemoteFrame-fpsStart>=3000){const fps=remoteFrames/((lastRemoteFrame-fpsStart)/1000);setText('metrics','输出 '+fps.toFixed(1)+' fps · '+canvas.width+'×'+canvas.height);remoteFrames=0;fpsStart=lastRemoteFrame;}}if(v.requestVideoFrameCallback)remoteFrameId=v.requestVideoFrameCallback(next);else remoteRaf=requestAnimationFrame(next);};next();}
+function requestSnapshot(){const view=currentView();const prompt=$('promptEditor').value.trim();if(!selected||!view||!images.get(view.image)?.ok){message('商品参考图未准备好，请检查文件后刷新。',true);return null;}if(!prompt){message('请填写提示词，或恢复默认提示词。',true);return null;}return {id:selected.id,name:selected.name,category:selected.category,image:view.image,view:view.label,prompt,enhance:false,blob:images.get(view.image).blob};}
+function markSent(item){sent=item;setText('sentName',item.name);setText('sentView',item.view);sendState='参考图已发送';updateDraftState();}
+async function applyOrStart(){if(requestBusy||lane.pending||cameraPending)return;const item=requestSnapshot();if(!item)return;if(lane.connection){const connection=lane.connection,run=lane.version;requestBusy=true;sendState='发送参考图…';updateButtons();const op=billing.operation(item);try{await connection.set({image:item.blob,prompt:item.prompt,enhance:false});if(!lane.current(run))return;billing.operationEnd(op,'已发送');markSent(item);message('参考图和提示词已发送，请观察 AI 中的实际变化。');}catch(e){billing.operationEnd(op,'发送失败');if(lane.current(run)){sendState='发送失败';message(friendly(e),true);}}finally{requestBusy=false;updateButtons();}return;}
+ if(!feed){message('请先免费预览摄像头，再开始实时试衣。');return;}if(!config?.configured){message('后端未配置密钥，请配置 .env 后重启。',true);return;}
+ const run=lane.begin();stopRequested=false;hasRemoteFrame=false;sent=null;sendState='连接中';activeView='original';connectingAt=performance.now();fpsStart=connectingAt;remoteFrames=0;reconnectingAt=0;warningAt=0;setState('摄像头已就绪','连接中');loading(true,'连接中 · 等待 AI 首帧');updateButtons();billing.begin(config.model,{sdk:'0.2.3',mode:$('framing').value,inputWidth:canvas.width,inputHeight:canvas.height,camera:source.getVideoTracks()[0].getSettings()});const op=billing.operation(item);
+ sessionTimer=setTimeout(()=>{if(lane.current(run)&&!hasRemoteFrame)stop('60 秒未收到 AI 首帧，已停止，请检查网络后重试。',true);},60000);
+ try{const client=createDecartClient({apiKeyProvider:token,logger:{debug(){},info(){},warn(){},error(){}}});const connection=await client.realtime.connect(feed,{model:models.realtime(config.model),mirror:false,initialState:{image:item.blob,prompt:{text:item.prompt,enhance:false}},onRemoteStream:stream=>{if(!lane.current(run)){stream.getTracks().forEach(t=>t.stop());return;}$('output').srcObject=stream;$('output').play().catch(()=>message('AI 视频无法播放，请结束后重试。',true));for(const track of stream.getVideoTracks())track.onended=()=>{if(lane.current(run))stop('远端画面已结束，请重新开始。',true);};watchRemote(run);},onConnectionChange:state=>{if(!lane.current(run))return;billing.state(state);const labels={connecting:'连接中',connected:'已连接',generating:'生成中',reconnecting:'重连中',disconnected:'已断开'};setState(cameraState,labels[state]||state);if(state==='reconnecting'){reconnectingAt=performance.now();hasRemoteFrame=false;stopRemoteWatch();activeView='original';showVideo();loading(true,'网络波动，正在重连…');}else if(state==='connected'||state==='generating'){reconnectingAt=0;if($('output').srcObject)watchRemote(run);}else if(state==='disconnected'){stop('连接已断开，请重新预览和开始。',true);}},onConnectionQuality:report=>{if(lane.current(run))setText('quality',({good:'网络良好',fair:'网络一般',poor:'网络较差',critical:'网络不稳定'}[report.quality]||'网络待检查'));},onQueuePosition:q=>{if(lane.current(run)){setState(cameraState,'排队中');loading(true,'排队中 · '+q.position);}}});
+ if(!lane.resolve(run,connection)){billing.operationEnd(op,'取消待核对');return;}
+ connection.on('generationTick',data=>{if(lane.current(run))billing.report(data.seconds);});connection.on('generationEnded',data=>{if(lane.current(run))billing.report(data.seconds);});connection.on('sessionEnded',()=>{if(lane.current(run))stop('Decart 已结束会话，可以重新预览。');});connection.on('error',e=>{if(lane.current(run))message(friendly(e),true);});connection.on('stats',s=>{if(lane.current(run))billing.stats(s);});
+ billing.operationEnd(op,'已发送');markSent(item);showVideo();limitNotice=setTimeout(()=>{if(lane.current(run))message('本次试衣即将达到 5 分钟上限。');},Math.max(0,config.maxSessionSeconds-30)*1000);setTimeoutGuard(run,config.maxSessionSeconds);message('实时连接已建立。参考图已发送，请观察换装并小幅运动。');
+ }catch(e){lane.reject();billing.operationEnd(op,'连接失败');if(lane.current(run))stop(friendly(e),true);}
+ finally{if(stopRequested){setState('已关闭','已结束');sendState='待开始';billing.end('取消待核对');}releaseIfIdle();updateButtons();}}
+let maxTimer=0;function setTimeoutGuard(run,seconds){maxTimer=setTimeout(()=>{if(lane.current(run))stop('已达到本次时长上限，会话已停止。');},seconds*1000);}
+function stop(text='会话已结束，摄像头已关闭。',error=false){stopRequested=true;const wasPending=lane.pending;lane.cancel();clearTimeout(sessionTimer);clearTimeout(maxTimer);clearTimeout(limitNotice);stopRemoteWatch();disposeCamera();hasRemoteFrame=false;reconnectingAt=0;requestBusy=false;$('output').srcObject=null;loading(false);activeView='original';sent=null;setText('sentName','—');setText('sentView','');sendState=wasPending?'停止处理中':'待开始';setState('已关闭',wasPending?'停止处理中':'已结束');setText('metrics','—');setText('quality','标准模式');showVideo();billing.end(error||wasPending?'中断待核对':'已结束');releaseIfIdle();updateButtons();message(text,error);}
+async function token(){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);try{const res=await fetch('/api/token',{method:'POST',headers:{'X-Anywear-Request':'1'},signal:controller.signal});const data=await res.json();if(!res.ok)throw Object.assign(Error(),{safeMessage:data.error});return data.apiKey;}finally{clearTimeout(timeout);}}
+function friendly(e){if(e.safeMessage)return e.safeMessage;const cameraErrors={NotAllowedError:'摄像头权限被拒绝，请在浏览器和 Mac 设置中允许后重试。',NotFoundError:'未发现摄像头，请连接后刷新设备。',NotReadableError:'摄像头无法读取，请关闭占用摄像头的应用。',OverconstrainedError:'所选摄像头不可用，请刷新设备并重新选择。',AbortError:'请求超时或已取消，请重试。'};if(cameraErrors[e.name])return cameraErrors[e.name];const code=String(e.code||'');if(/PROMPT|TEXT|LENGTH/.test(code))return '提示词过长或不符合接口要求，请缩短后重新应用。';if(/AUTH|TOKEN|KEY/.test(code))return 'Decart 身份验证失败，请检查密钥和权限。';if(/QUOTA|LIMIT|CREDIT/.test(code))return 'Decart 额度或并发不足，请检查账户。';return '操作失败，请检查网络、摄像头和账户后重试。';}
+// Draft editing never sends network updates. Only an explicit click snapshots the request.
+$('promptEditor').oninput=()=>{drafts.set(draftKey(),$('promptEditor').value);updateDraftState();};$('resetPrompt').onclick=()=>{drafts.delete(draftKey());showDraft();};
+$('start').onclick=applyOrStart;$('stop').onclick=()=>stop();$('previewOnly').onclick=previewCamera;$('previewCenter').onclick=previewCamera;
+$('cameraSelect').onchange=async()=>{safeStorage.set('anywear-camera',$('cameraSelect').value);if(source){disposeCamera();await previewCamera();}};
+$('refreshDevices').onclick=()=>refreshDevices().catch(()=>message('无法获取设备列表，请先允许摄像头。',true));
+$('framing').onchange=()=>{if(source){prepareFeed();drawInput();showVideo();}};
+$('mirrorDisplay').onchange=()=>document.querySelector('.mirror').classList.toggle('display-mirrored',$('mirrorDisplay').checked);
+$('showAI').onclick=()=>{activeView='ai';showVideo();};$('showOriginal').onclick=()=>{activeView='original';showVideo();};$('pipToggle').onchange=showVideo;
+$('checkApi').onclick=async()=>{$('checkApi').disabled=true;try{await token();setText('apiStatus','API 令牌验证通过');message('令牌验证通过，尚未开启生成会话。');}catch(e){setText('apiStatus','API 验证失败');message(friendly(e),true);}finally{$('checkApi').disabled=false;}};
+for(const b of document.querySelectorAll('[data-category]'))b.onclick=()=>{category=b.dataset.category;for(const t of document.querySelectorAll('[data-category]'))t.setAttribute('aria-selected',String(t===b));renderProducts();};
+$('enlarge').onclick=()=>{if(!selected)return;setText('imageTitle',selected.name);$('largeImage').src=currentView().image;setText('largePrompt',currentView().label);$('imageDialog').showModal();};$('closeImage').onclick=()=>$('imageDialog').close();$('imageDialog').onclick=e=>{if(e.target===$('imageDialog'))$('imageDialog').close();};
+$('upload').onclick=()=>$('file').click();$('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(!['image/jpeg','image/png','image/webp'].includes(f.type)||f.size>10*1024*1024)throw Error();const bitmap=await createImageBitmap(f);const min=Math.min(bitmap.width,bitmap.height);bitmap.close();const c=$('uploadCategory').value,url=URL.createObjectURL(f);objectURLs.push(url);const region={tops:'upper body garment',bottoms:'lower body garment',shoes:'footwear',outfit:'outfit'}[c];const p={id:crypto.randomUUID(),name:f.name.replace(/\.[^.]+$/,''),category:c,detail:'本次页面上传',views:[{label:'商品参考',image:url,prompt:`Substitute the ${region} with the clothing in the reference image, matching its visible color, shape and details. Preserve the camera subject and background.`}]};images.set(url,{ok:true,blob:f});products.unshift(p);category='all';document.querySelector('[data-category=all]').click();select(p);if(min<512)message('图片清晰度较低，建议使用至少 512px 的参考图。');}catch{message('请上传有效且不超过 10MB 的 JPEG、PNG 或 WebP。',true);}finally{e.target.value='';}};
+// Watch actual decoded source frames, not repeated canvas draws.
+setInterval(()=>{if(!source||document.hidden)return;const now=performance.now();const sourceAge=now-lastCameraFrame,remoteAge=hasRemoteFrame?now-lastRemoteFrame:0;const action=stallAction(Math.max(sourceAge,remoteAge),true);if(action==='stop'){stop('画面已停滞 15 秒，会话已停止，请重新预览。',true);return;}if(action==='warn'&&now-warningAt>5000){warningAt=now;setText('videoBadge','画面异常 · 检查连接');message('超过 5 秒没有新画面，请检查 iPhone 是否暂停或网络中断。',true);}if(reconnectingAt&&now-reconnectingAt>=30000)stop('重连超过 30 秒，已停止，请重新开始。',true);},1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastCameraFrame=performance.now();lastRemoteFrame=performance.now();}});
+navigator.mediaDevices?.addEventListener('devicechange',()=>{if(!lane.connection&&!lane.pending)refreshDevices().catch(()=>{});});
 window.addEventListener('pagehide',()=>{stop();objectURLs.forEach(URL.revokeObjectURL);});
-renderProducts();
-showPrompt();
-mountBilling();
-installI18n();
-fetch('/api/status').then(r=>r.json()).then(data=>{config=data;$('apiStatus').textContent=data.configured?'密钥已配置':'密钥未配置';message(`请允许浏览器使用摄像头。开启实时试衣后，视频和商品图将发送至 Decart，并按账户规则计费；每次最多 ${Math.round(data.maxSessionSeconds/60)} 分钟。`);}).catch(()=>{message('本地后端无法连接，请重启服务。',true);});
-
-fetch('/api/local-products').then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{if(data.products?.length){products.unshift(...data.products);if(!camera&&!busy&&!rt&&selected.id==='tee')select(products.find(p=>p.id==='local-pride')||products[0]);else renderProducts();}}).catch(()=>{message('本机商品列表未加载，请确认本地服务已更新。',true);});
+const sentView=document.createElement('small');sentView.id='sentView';$('sentName').after(sentView);
+mountBilling();installI18n();
+Promise.all([fetch('/api/status').then(r=>r.json()).then(data=>{config=data;setText('apiStatus',data.configured?'密钥已配置':'密钥未配置');updateButtons();}).catch(()=>message('本地后端无法连接，请重启服务。',true)),loadCatalog()]);
