@@ -69,3 +69,5 @@ Mac 本地单页试衣网页，使用 Decart Lucy VTON 官方实时 SDK / WebRTC
 2026-10-08现场增量：Chrome/iPhone完整取景1280×720、30fps，连接2.19秒、真实远端首帧4.1秒，用户结束后关闭输入。一次会话约22秒，不满足上衣/下装各30秒与连续三次验收；效果状态仍待确认。服务重新启动并确认HTTP 200。M3 GitHub提交bc3e64a，CI通过，PR #1仍为草稿。
 
 当前验收缺口：已有两次Chrome实际远端首帧（4.1s、4.3s）；第二轮约84s，SDK记录一次约2s卡顿后恢复。尚无用户确认的服装对应/运动质量，也未验证下装、正反面/鞋效果、同连接三次切换及连续三次开始结束。最新版本补齐首次iPhone优先选择、准确错误分类和帧率/请求耗时日志，大图查看费用能正常退出并打开记录；这些程序检查不代替现场视觉验收。
+
+第三次Chrome连接首帧3.95s也已记录；前三次付费连接都接通。部分开始前免费预览出现设备不可用，所以新版iPhone恢复仍需复测，不能认定完整连续流程已经稳定。最新代码/台账在[功能分支](https://github.com/Shanlans/anywear-local-/tree/feature/live-fitting-demo)，[PR #1](https://github.com/Shanlans/anywear-local-/pull/1)等待现场效果验收，main尚保留旧基线。
