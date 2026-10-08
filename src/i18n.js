@@ -1,5 +1,21 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'试衣提示词 · Prompt':'Try-on prompt',
+'默认提示词可直接修改。选商品或正反面只更新草稿，点击应用后才发送；编辑期间当前会话继续计费。':'Edit the default prompt freely. Selecting a product or view only changes the draft. Click Apply to send it; an active session keeps accruing charges while you edit.',
+'恢复默认':'Restore default','应用并实时试衣':'Apply & try on live','草稿 · 尚未应用':'Draft · Not applied','已提交当前草稿':'Current draft submitted',
+'每次发送一张参考图；正反面需分别选择并应用，不会自动融合。':'One reference image per update. Select and apply front or back separately; they are not fused automatically.',
+'请填写提示词，或恢复默认提示词。':'Enter a prompt or restore the default.',
+'正在连接或发送，请稍后再应用。':'Connecting or sending. Please apply again once it finishes.',
+
+'本机商品图':'Local product photo','正面参考':'Front reference','背面参考':'Back reference','整套穿搭（实验性）':'Full outfit (experimental)',
+'MEXICO 66 黄黑运动鞋':'MEXICO 66 yellow / black','Pace Breaker 5英寸短裤':'Pace Breaker 5-inch shorts','Pride 蓝色印花 T 恤':'Pride blue graphic tee','All It Takes 黑色罗纹上衣':'All It Takes black ribbed top','Dance Studio 拼色阔腿裤':'Dance Studio colourblock pants',
+'黄黑皮面 · 鞋类实验':'Yellow / black · Experimental shoes','深灰 · 松紧腰短裤':'Dark grey · Elastic-waist shorts','蓝色 · 胸前白色文字':'Blue · White chest lettering','贴身短款 · 正反面参考':'Fitted crop · Front & back','米白拼色 · 抽绳阔腿':'Beige / white · Wide leg',
+'本机商品图仅用于本地试穿，未上传公共仓库；另有原创示意图。含模特的参考图可能影响还原，文字、标志及背面细节需要实测。':'Local product photos stay on this Mac and are not in the public repository. Original illustrations are also available. Model photos, lettering, logos and rear details need visual testing.',
+'正面与背面分别发送单张参考图。转身时可手动切换；这不是自动多视角重建，背面还原不保证。':'Front and back are sent as separate single-image references. Switch manually when turning around. This is not automatic multi-view reconstruction; rear fidelity is not guaranteed.',
+'整套穿搭实验：替换参考图中的衣服组合，需要全身入镜；人物外观与服装细节可能出现偏差。':'Full-outfit experiment: transfer the clothing combination from the reference. Keep your whole body in frame. Appearance and garment details may vary.',
+'本机原始商品图；含模特图片尚未去人物。只替换所选品类，效果与图案细节需实测。':'Original local product photo; the model has not been removed. Only the selected garment category is requested. Test visual and graphic fidelity.',
+'整套实验 · 请让全身完整入镜':'Outfit experiment · Keep your whole body in frame','本机商品列表未加载，请确认本地服务已更新。':'Local product list failed to load. Restart the updated local server.',
+
 '试衣花费，一目了然。':'Try-on spending, at a glance.',
 '按标准 VTON $0.02/生成秒估算，约 $1.20/分钟；仅供预算，非官方账单。':'Estimated at standard VTON $0.02 per generation second, about $1.20 per minute. A budget estimate, not an official bill.',
 '本次估算':'Current estimate','累计估算':'Total estimate','平均每次':'Average per session','已结束次数':'Completed sessions','剩余金额估算':'Estimated remaining balance',
@@ -73,7 +89,7 @@ function translate(s){if(locale==='zh-CN')return s;const trim=s.trim();const dic
  const substitutions=[
  [/^请允许浏览器使用摄像头。开启实时试衣后，视频和商品图将发送至 Decart，并按账户规则计费；每次最多 (\d+) 分钟。$/,(_,n)=>`Allow camera access. Starting live try-on sends video and product images to Decart and may incur usage charges. Each session lasts up to ${n} minutes.`],
  [/^已向 Decart 发送「(.+)」；请在 AI 视频中观察实际换装效果。(.*)$/,(_,n,extra)=>`Sent “${en[n]||n}” to Decart. Check the AI video for the actual result.${extra?' Shoes are experimental; keep both feet in frame.':''}`],
- [/^已连接 (.+)。参考图已发送；请观察实际 AI 输出，点击左侧可切换单品。$/,(_,m)=>`Connected to ${m}. Reference sent. Check the actual AI output; select an item on the left to switch.`],
+ [/^已连接 (.+)。参考图已发送；请观察实际 AI 输出，选择单品或编辑提示词后，点击应用更新。$/,(_,m)=>`Connected to ${m}. Reference sent. Check the actual AI output; select an item or edit the prompt, then click Apply to update.`],
  [/^已达到本次 (\d+) 秒上限，会话已停止。$/,(_,n)=>`The ${n}-second limit was reached. Session stopped.`],
  [/^未确认记录 (\d+)$/,(_,n)=>`Unconfirmed records: ${n}`],
  [/^等待服务空位 · 队列 (\d+)$/,(_,n)=>`Waiting for a server · Queue position ${n}`],

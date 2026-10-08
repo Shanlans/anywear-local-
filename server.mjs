@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import {localProducts} from './src/local-catalog.js';
 import { createDecartClient } from '@decartai/sdk';
 const root = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({path:path.join(root,'.env'),quiet:true});
@@ -12,12 +13,28 @@ const maxSessionSeconds=Math.max(10, Math.min(1800,Number(process.env.MAX_SESSIO
 const client=process.env.DECART_API_KEY ? createDecartClient({apiKey:process.env.DECART_API_KEY}) : null;
 const webRoot=path.join(root,'dist');
 if(!fs.existsSync(path.join(webRoot,'index.html')))throw new Error('请先运行 npm run build');
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.json':'application/json'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webp':'image/webp','.png':'image/png','.json':'application/json'};
 let lastMint=0;
 const json=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(body));};
 const server=http.createServer(async(req,res)=>{
   const host=req.headers.host;
   if(![`localhost:${port}`,`127.0.0.1:${port}`].includes(host)){return json(res,403,{error:'仅允许本机访问'});}
+  if(req.url==='/api/local-products' && req.method==='GET'){
+    const items=localProducts.flatMap(product=>{
+      const views=(product.views||[{label:'正面参考',file:product.file,prompt:product.prompt}]).filter(view=>fs.existsSync(path.join(root,'src/local-products',view.file))).map(view=>({...view,image:'/local-products/'+encodeURIComponent(view.file)}));
+      return views.length?[{...product,local:true,views,image:views[0].image,prompt:views[0].prompt}]:[];
+    });
+    return json(res,200,{products:items});
+  }
+  if(req.url?.startsWith('/local-products/') && ['GET','HEAD'].includes(req.method)){
+    let name;try{name=decodeURIComponent(req.url.slice('/local-products/'.length));}catch{return json(res,400,{error:'无效图片路径'});}
+    const permitted=localProducts.flatMap(p=>p.views?p.views.map(v=>v.file):[p.file]);
+    if(!permitted.includes(name))return json(res,404,{error:'图片不存在'});
+    const target=path.join(root,'src/local-products',name);
+    if(!fs.existsSync(target))return json(res,404,{error:'本机图片未安装'});
+    res.writeHead(200,{'Content-Type':mime[path.extname(target)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+    if(req.method==='HEAD')return res.end();return fs.createReadStream(target).pipe(res);
+  }
   if(req.url==='/api/status' && req.method==='GET')return json(res,200,{configured:!!client,model,maxSessionSeconds});
   if(req.url==='/api/token' && req.method==='POST'){
     const origin=req.headers.origin;

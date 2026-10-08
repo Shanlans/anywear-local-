@@ -47,7 +47,7 @@ token 请求必须包含 X-Anywear-Request: 1。后端拒绝其他 Host 与跨�
 | 鞋子 | 官方指南明确列出 footwear | 1 张预置图，实验性标记 | 双脚完整入镜；本机效果尚未验证 |
 | 帽子、项链等配饰 | 官方提示词指南列出 | 未增加商品分类 | 后续功能，不纳入当前验收 |
 | 参考图与文字提示词 | 支持 | 已实现 | 预置详细提示词，上传采用品类提示词 |
-| 动态切换参考图 | 支持 set / setImage | 已实现，串行发送最新选择 | 发送成功不等于画面还原成功 |
+| 动态切换参考图 | 支持 set / setImage | 已实现，点击应用发送草稿快照 | 发送成功不等于画面还原成功 |
 | 提示词增强 | enhance | 上传启用，预置关闭 | 不是额外视觉识别服务 |
 | 套装 | 指南列出 outfit | 未实现多参考图合成 | 单件切换不保证保留此前衣服 |
 | 图片格式 | JPEG / PNG / WebP | 已限制类型和 10MB 上传大小 | 10MB 是本 Demo 自定限制 |
@@ -76,7 +76,7 @@ Decart 官方使用按量计费；实时接口按活跃生成秒数计费，视�
 
 ## 接入注意事项
 
-set 会整体替换模型状态，遗漏字段会被清除，因此每次切换同时传 image、prompt、enhance。参考图优先单件、白底、无人物、至少 512px。prompt 指定 upper body garment、lower body garment 或 footwear；只描述图中可见细节，不凭空增加商标。[官方 VTON 指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)
+set 会整体替换模型状态，遗漏字段会被清除，因此每次切换同时传 image、prompt、enhance。参考图优先单件、白底、无人物、至少 512px。prompt 指定 upper body garment、lower body garment、footwear 或 outfit；只描述图中可见细节，不凭空增加商标。[官方 VTON 指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)
 
 不设置 fast 参数就是标准模式；不能把字符串 standard 作为 speed 传入。模型别名和价格会变，后续升级需重新核对来源，记录更新时间。视频和图片由浏览器发送到 Decart；供应商留存与政策需要按其实际服务条款判断，本 Demo 没有声称供应商零留存。
 
@@ -96,3 +96,11 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 公开文档索引和 SDK 未提供可确认的金额余额查询方法；GET /v1/realtime/quota 仅返回并发 limit、active、remaining，不能映射为美元。[Quota 说明](https://docs.platform.decart.ai/api-reference/get-realtime-quota)
 
 因此真实账户余额默认为未读取。用户可在平台确认金额后手动校准，剩余估算等于快照金额减去校准后的本地估算。其他应用、标签页、浏览器、充值和平台调整不在扣减范围；刷新保留此浏览器 localStorage。没有调用未公开的控制台接口，也没有上传用户账目到 GitHub。
+
+## 2026-10-08 输入方式与背面核查
+
+官方实时 VTON 文档列出单个 `image`（JPEG/PNG/WebP），没有图片数组或 front_image/back_image 多视角参数。允许文字、参考图或两者组合，故 Prompt 并非 API 必填；本 Demo 为可控试验要求编辑框非空，并总是发送当前单图+Prompt，enhance=false。初始连接用 initialState，已连接用 set；set 整体替换状态，不能把先发正面、再发背面视作积累两张图。来源：[实时 VTON](https://docs.platform.decart.ai/models/realtime/virtual-try-on)。
+
+公开请求无 gender 参数或性别识别结果；品类通过提示词指定目标区域。outfit 可以描述整套服饰，但不代表复制模特身份，也不保证先前单品保留。含模特参考建议先提取服装，当前未实现该步骤。来源：[提示词指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)。
+
+前后面通过手动选择不同参考图+相应描述测试，模型没有公开的背面精确保真承诺。缺失视角、印花/商标、背部开口和接缝都需真人实测。该 Demo 未实现姿态识别、自动切图、多视图融合或 3D 服装重建；不能宣称背面准确。
