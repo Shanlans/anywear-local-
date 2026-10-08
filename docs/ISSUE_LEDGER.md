@@ -37,3 +37,7 @@
 ### BUG-007 第三次现场定位
 
 2026-10-08 08:09 UTC：再次36717ms失败。固定词表错误特征为`could not establish signal connection failed rtcpeerconnection unsupported`，说明服务端视频协商中的RTCPeerConnection操作失败；媒体warn为LiveKit room disconnected，并非worker构造警告。免费创建本地视频SDP offer检查在内置浏览器与外部Chrome均通过，所以不认定整个浏览器缺失WebRTC；需Chrome真实连接复测区分协商兼容性。已添加启动免费能力检查，能力不足时禁止开始，保留预览，不创建Decart会话。外部Chrome页已更新，用户控制摄像头与付费开始。BUG-007仍进行中，根因细节和修复效果未确认。
+
+### BUG-007 Chrome路径进展
+
+TEST-008：用户在外部Chrome启动后首次attempt成功，2.19秒connected、4.1秒真实首帧，没有此前RTCPeerConnection unsupported。外部Chrome可用路径已验证，内置浏览器的完整服务端协商兼容性仍未解决；基础SDP检查通过不等于所有远端配置通过。建议现场演示使用Chrome。视觉换装尚待反馈，BUG-001与M4不因首帧通过而关闭。
