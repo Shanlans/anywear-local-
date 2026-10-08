@@ -1,5 +1,6 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'放大试衣区':'Expand fitting view','退出大图':'Exit large view',
 '正在检查浏览器实时视频能力…':'Checking browser real-time video capability…',
 '浏览器实时视频能力检查通过':'Browser real-time video capability check passed',
 '当前浏览器不支持实时视频，请用 Mac 的 Chrome 或 Safari 打开 localhost:3000。':'This browser does not support real-time video. Open localhost:3000 in Chrome or Safari on your Mac.',
