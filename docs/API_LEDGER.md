@@ -11,7 +11,7 @@
 | 供应商 | Decart AI | [官方平台](https://platform.decart.ai) |
 | 密钥入口 | 登录账户，在 API Keys 页面创建密钥 | [认证指南](https://docs.platform.decart.ai/getting-started/authentication) |
 | 已配置 | 用户提供的密钥已写入本机 .env，权限 600；值不入仓库 | 本机配置检查 |
-| SDK | @decartai/sdk 0.2.3，锁定版本 | package.json 与 pnpm-lock.yaml |
+| SDK | @decartai/sdk 0.2.7，锁定版本 | package.json 与 pnpm-lock.yaml |
 | 默认模型 | lucy-vton-latest | 后端 .env 配置 |
 | 当前别名 | 官方模型页列为 lucy-vton-3.5；3.6 虽已可用，但不要把 latest 自动描述成 3.6 | [模型页](https://docs.platform.decart.ai/getting-started/models) |
 | 通信 | 浏览器官方 SDK 建立 WebRTC / LiveKit 连接，直接上传实时视频 | [官方 SDK 示例](https://github.com/DecartAI/sdk) |
@@ -104,3 +104,11 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 公开请求无 gender 参数或性别识别结果；品类通过提示词指定目标区域。outfit 可以描述整套服饰，但不代表复制模特身份，也不保证先前单品保留。含模特参考建议先提取服装，当前未实现该步骤。来源：[提示词指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)。
 
 前后面通过手动选择不同参考图+相应描述测试，模型没有公开的背面精确保真承诺。缺失视角、印花/商标、背部开口和接缝都需真人实测。该 Demo 未实现姿态识别、自动切图、多视图融合或 3D 服装重建；不能宣称背面准确。
+
+## 2026-10-08 · SDK兼容性纠正与真实连接调试
+
+前版安装0.2.3未实现apiKeyProvider，令牌签发通过不能证明SDK能构造实时客户端。BUG-006已定位并升级官方npm0.2.7，新增provider拨号前调用回归。上游官方npm latest核对0.2.7；旧版本事实保留在Git/问题记录。实时使用connect/set，绝不使用Batch替代。
+
+官方价格重新核查：标准VTON3.5/3.6均$0.02/活跃生成秒；3.5快速$0.04，3.6无快速。来源https://docs.platform.decart.ai/getting-started/pricing 。当前latest底层具体版本以供应商为准，记录为未知；没有启用快速模式。
+
+后端令牌200已验证。用户报告开始等待约25秒后断开，BUG-007待脱敏日志确认，无真实AI画面验证成功。本机日志字段白名单排除认证/Prompt/媒体/原始URL。

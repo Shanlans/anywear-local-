@@ -3,10 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import {createDiagnosticWriter} from './diagnostics.mjs';
 import {localProducts} from './src/local-catalog.js';
 import { createDecartClient } from '@decartai/sdk';
 const root = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({path:path.join(root,'.env'),quiet:true});
+const logDiagnostic=createDiagnosticWriter(root);
 const port=Number(process.env.PORT||3000);
 const model=process.env.DECART_MODEL||'lucy-vton-latest';
 const maxSessionSeconds=Math.max(10, Math.min(1800,Number(process.env.MAX_SESSION_SECONDS)||300));
@@ -19,12 +21,18 @@ const json=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application
 const server=http.createServer(async(req,res)=>{
   const host=req.headers.host;
   if(![`localhost:${port}`,`127.0.0.1:${port}`].includes(host)){return json(res,403,{error:'仅允许本机访问'});}
+  if(req.url==='/api/diagnostics' && req.method==='POST'){
+    const origin=req.headers.origin;
+    if(req.headers['x-anywear-request']!=='1'||origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(origin))return json(res,403,{error:'不允许此来源'});
+    if(!req.headers['content-type']?.startsWith('application/json'))return json(res,415,{error:'需要JSON'});
+    let body='',size=0;try{for await(const chunk of req){size+=chunk.length;if(size>4096)return json(res,413,{error:'日志过大'});body+=chunk;}const input=JSON.parse(body);if(!logDiagnostic(input))return json(res,400,{error:'日志字段无效或写入失败'});return json(res,200,{ok:true});}catch{return json(res,400,{error:'日志无效'});}
+  }
   if(req.url==='/api/local-products' && req.method==='GET'){
     const items=localProducts.flatMap(product=>{
-      const views=(product.views||[{label:'正面参考',file:product.file,prompt:product.prompt}]).filter(view=>fs.existsSync(path.join(root,'src/local-products',view.file))).map(view=>({...view,image:'/local-products/'+encodeURIComponent(view.file)}));
-      return views.length?[{...product,local:true,views,image:views[0].image,prompt:views[0].prompt}]:[];
+      const views=(product.views||[{label:'正面参考',file:product.file,prompt:product.prompt}]).map(view=>({...view,available:fs.existsSync(path.join(root,'src/local-products',view.file)),image:'/local-products/'+encodeURIComponent(view.file)}));
+      return [{...product,local:true,views,image:views[0].image,prompt:views[0].prompt}];
     });
-    return json(res,200,{products:items});
+    return json(res,200,{products:items.some(p=>p.views.some(v=>v.available))?items:[]});
   }
   if(req.url?.startsWith('/local-products/') && ['GET','HEAD'].includes(req.method)){
     let name;try{name=decodeURIComponent(req.url.slice('/local-products/'.length));}catch{return json(res,400,{error:'无效图片路径'});}
@@ -45,10 +53,11 @@ const server=http.createServer(async(req,res)=>{
     lastMint=Date.now();
     try{
       const token=await client.tokens.create({expiresIn:60,allowedModels:[model],allowedOrigins:[`http://localhost:${port}`,`http://127.0.0.1:${port}`],constraints:{realtime:{maxSessionDuration:maxSessionSeconds}}});
+      logDiagnostic({event:'token-created',model,status:200,success:true});
       return json(res,200,{apiKey:token.apiKey,expiresAt:token.expiresAt});
     }catch(error){
       // Do not log credentials, upstream request headers or raw SDK errors.
-      const status=Number(error.status||error.statusCode||0);
+      const status=Number(error.status||error.statusCode||0);logDiagnostic({event:'token-error',status,success:false});
       return json(res,502,{error:status===401||status===403?'Decart 拒绝密钥或权限，请检查密钥与账户权限。':'Decart 无法签发会话令牌，请检查网络、密钥和账户额度。',code:error.code||'TOKEN_FAILED'});
     }
   }

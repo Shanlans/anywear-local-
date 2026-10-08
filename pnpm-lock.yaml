@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@decartai/sdk':
-        specifier: 0.2.3
-        version: 0.2.3(@types/dom-mediacapture-record@1.0.22)
+        specifier: 0.2.7
+        version: 0.2.7(@types/dom-mediacapture-record@1.0.22)
       dotenv:
         specifier: 17.2.3
         version: 17.2.3
@@ -23,8 +23,8 @@ packages:
   '@bufbuild/protobuf@1.10.1':
     resolution: {integrity: sha512-wJ8ReQbHxsAfXhrf9ixl0aYbZorRuOWpBNzm8pL8ftmSxQx/wnJD5Eg861NwJU/czy2VXFIebCeZnZrI9rktIQ==}
 
-  '@decartai/sdk@0.2.3':
-    resolution: {integrity: sha512-bY/Z0MgmEy8GMZQWU9Q7wtAK2lKwat2bKF8VTUaeQvJ4vi3W+RGfV55PC8lF9mUgyD6TbW1iCcqYWsKLCM4mVA==}
+  '@decartai/sdk@0.2.7':
+    resolution: {integrity: sha512-ASBJAliL5ePbJR3m9ZIAT4VjtuGjRLWzNKt1f7xn6U/wF2r361duUXwV0kbVyMh+oknOJQtqksmuBUrsByui8A==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -492,7 +492,7 @@ snapshots:
 
   '@bufbuild/protobuf@1.10.1': {}
 
-  '@decartai/sdk@0.2.3(@types/dom-mediacapture-record@1.0.22)':
+  '@decartai/sdk@0.2.7(@types/dom-mediacapture-record@1.0.22)':
     dependencies:
       jose: 6.2.12
       livekit-client: 2.20.2(@types/dom-mediacapture-record@1.0.22)
