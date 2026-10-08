@@ -19,6 +19,8 @@ Mac 本地单页试衣网页，使用 Decart Lucy VTON 官方实时 SDK / WebRTC
 
 **页面可运行、令牌签发成功不代表真实服装还原已经通过。** 至少一件上衣和下装需各30秒运动观察，由用户确认效果，三次开始结束及三次切换不刷新。
 
+本机重新部署：2026-10-08 19:52（Asia/Singapore），生产构建通过，服务已重新启动；网页和全部七张本机参考图HTTP200，密钥已配置。此为部署时检查，真实视觉验收状态不变，详见REL-003。
+
 ## Mac 启动
 
 安装 Node.js 24或更新LTS，首次运行 `npm install`（会构建），复制 `.env.example` 为 `.env`，填写 `DECART_API_KEY`。然后 `npm start` 或双击 `start.command`，保持终端运行，打开 <http://localhost:3000/>。已有本机项目已配置密钥，不要把密钥提交。
