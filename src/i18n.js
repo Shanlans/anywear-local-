@@ -1,5 +1,11 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'正在检查浏览器实时视频能力…':'Checking browser real-time video capability…',
+'浏览器实时视频能力检查通过':'Browser real-time video capability check passed',
+'当前浏览器不支持实时视频，请用 Mac 的 Chrome 或 Safari 打开 localhost:3000。':'This browser does not support real-time video. Open localhost:3000 in Chrome or Safari on your Mac.',
+'视频连接组件启动失败，已记录日志，请等待修复后重试。':'Video connection component failed. Diagnostics saved; retry after a fix.',
+'实时视频连接失败，服务器未能建立视频通道。已记录日志，请结束后重试。':'Real-time video connection failed. Diagnostics saved; stop and retry.',
+'旋转':'Rotation','不旋转':'None','顺时针 90°':'90° clockwise','逆时针 90°':'90° counterclockwise',
 '画面已恢复。':'Video recovered.','设备列表已刷新。':'Device list refreshed.',
 "实时试衣间":"Live fitting room",
 "你的商品":"Your garments",
@@ -200,6 +206,7 @@ let locale=localStorage.getItem('anywear-language')||'zh-CN';if(!locales[locale]
 const memory=new WeakMap();
 function translate(s){if(locale==='zh-CN')return s;const trim=s.trim();const dictionary=locales[locale].dictionary;const direct=dictionary[trim];if(direct)return s.replace(trim,direct);
  const substitutions=[
+ [/^输入 (.+)$/,(_,size)=>`Input ${size}`],
  [/^摄像头 (\d+)$/,(_,n)=>`Camera ${n}`],
  [/^排队中 · (\d+)$/,(_,n)=>`Queued · ${n}`],
  [/^输出 (.+) fps · (.+)$/,(_,n,size)=>`Output ${n} fps · ${size}`],

@@ -112,3 +112,7 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 官方价格重新核查：标准VTON3.5/3.6均$0.02/活跃生成秒；3.5快速$0.04，3.6无快速。来源https://docs.platform.decart.ai/getting-started/pricing 。当前latest底层具体版本以供应商为准，记录为未知；没有启用快速模式。
 
 后端令牌200已验证。用户报告开始等待约25秒后断开，BUG-007待脱敏日志确认，无真实AI画面验证成功。本机日志字段白名单排除认证/Prompt/媒体/原始URL。
+
+## 2026-10-08 连接兼容性调试
+
+官方[网络与浏览器要求](https://docs.platform.decart.ai/integrations/network-requirements)推荐当前Chrome/Edge/Firefox/Safari，实际依赖运行时WebRTC能力。项目新增免费本地SDP视频offer检查，检查通过仍不代表远端ICE/SDP协商通过。实测令牌签发成功但约37秒后报RTCPeerConnection unsupported；内置浏览器/Chrome本地SDP均通过，远端Chrome待实测。记录于BUG-007，不能误记为密钥无效。用户iPhone竖持时轨道1280×720，新增输入旋转与完整画幅，模型与预览取景同步；镜像依旧仅显示。
