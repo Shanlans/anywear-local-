@@ -1,5 +1,12 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'配件':'Accessories','配件（实验性）':'Accessories (experimental)',
+'黑框绿片太阳镜':'Black-frame green-lens sunglasses',
+'黑色厚框 · 绿色镜片 · 配件实验':'Thick black frame · Green lenses · Experimental accessory',
+'配件实验：眼镜请让脸部清晰入镜，贴合与细节需实测。':'Experimental accessory: for glasses, keep your face clearly in frame. Fit and detail need live testing.',
+'眼镜实验 · 脸部清晰入镜':'Experimental glasses · Face clearly in frame',
+'配件实验 · 佩戴区域完整入镜':'Experimental accessory · Wearing area fully in frame',
+
 '放大试衣区':'Expand fitting view','退出大图':'Exit large view',
 '正在检查浏览器实时视频能力…':'Checking browser real-time video capability…',
 '浏览器实时视频能力检查通过':'Browser real-time video capability check passed',
@@ -9,11 +16,11 @@ const en={
 '旋转':'Rotation','不旋转':'None','顺时针 90°':'90° clockwise','逆时针 90°':'90° counterclockwise',
 '画面已恢复。':'Video recovered.','设备列表已刷新。':'Device list refreshed.',
 "实时试衣间":"Live fitting room",
-"你的商品":"Your garments",
+"你的商品":"Your products",
 "准备应用":"Ready to apply",
 "查看大图":"View reference",
 "加载本机商品…":"Loading local products…",
-"上传其他商品":"Upload another garment",
+"上传其他商品":"Upload another item",
 "接入与素材说明":"API & image details",
 "摄像头":"Camera",
 "授权后选择摄像头":"Select after permission",
