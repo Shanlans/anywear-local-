@@ -1,0 +1,17 @@
+{
+  "name": "anywear-local",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "postinstall": "vite build",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@decartai/sdk": "0.2.3",
+    "vite": "7.1.12",
+    "dotenv": "17.2.3"
+  }
+}

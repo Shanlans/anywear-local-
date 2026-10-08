@@ -1,0 +1,20 @@
+name: Build and verify
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build
+      - run: pnpm test
+      - name: Reject tracked credentials
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env.example$'; then exit 1; fi
+          if git grep -n -E 'dct_[A-Za-z0-9_]{20,}|ek_[A-Za-z0-9_]{20,}' -- ':!pnpm-lock.yaml'; then exit 1; fi
