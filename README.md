@@ -4,7 +4,11 @@
 
 Mac 本地单页试衣网页，使用 Decart Lucy VTON 官方实时 SDK / WebRTC。左侧用户真实商品与可编辑 Prompt，右侧大试衣画面。当前迭代0.2，功能分支 `feature/live-fitting-demo`；最新状态以本文件和关联台账为准。
 
-## 当前状态（2026-10-08）
+## 网页消费者实验室（独立游戏功能）
+
+新增 `/lab/`：Concordia 2.4.0＋Phaser 2D 双店实验、独立消费者上下文、常驻本机后台、实时看板、分支/回放、报告和 Debug。安装、Codex 登录与运行说明见 [lab/README.md](lab/README.md)，协议见 [docs/GAME_PLAN.md](docs/GAME_PLAN.md)。无需 API key；真实模型调用消耗账号额度，金额未知。所有结果均为合成实验，不能当真实市场数据或真人换装效果。当前代码与真实实验状态分别记录于开发台账。
+
+## 当前实时试衣状态（2026-10-08）
 
 |能力|状态|
 |---|---|

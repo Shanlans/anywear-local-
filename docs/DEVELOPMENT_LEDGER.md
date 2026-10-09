@@ -151,3 +151,11 @@ DEV-007验证：构建与15回归通过；中英配件筛选、眼镜图片/大�
 ## REL-003 · 本机重新部署 · 2026-10-08 19:52 · Asia/Singapore · 通过（可访问性）
 
 用户请求重新部署。当前代码基线本机433faa4 / GitHub756283c，功能分支feature/live-fitting-demo，PR #1。重新构建前Git工作区干净；检查3000端口未发现监听，原进程退出原因未知，未将其推断成API/摄像头故障。生产构建通过，重新启动server.mjs。验证localhost网页HTTP200、status.configured=true、lucy-vton-latest、本机六商品七图片全部HTTP200且非空。没有签发令牌、开启摄像头或收费连接；没有代码功能变化，既有15项回归结果仍对应相同源码，文字更新不重复测试。此记录只证明部署时可访问，未增加真人效果验收证据。README同步本机恢复状态，CHANGELOG记录；如需回退，代码基线433faa4，摄影/密钥保留本机且不入Git。
+
+## DEV-008 · 消费者实验室 M0/M1 · 2026-10-09
+
+REQ-011 / DEC-014 / TEST-015 / BUG-015。独立clone基于远端feature/live-fitting-demo 6affbf9，feature/experiment-game开发；未改原checkout、sources和真人验收。Concordia实体/记忆/行动、零工具请求重写、事件世界、SQLite fencing、双语Phaser网页、导出及进程管理已实现。真实CLI隔离探针gpt-6.1-sol（codex-cli0.162.0-alpha.2）通过：上游input=1、tools=0、模型一致、结构化输出有效；观察token278+52，金额未知。后端20项、前端/既有17项检查通过，构建通过。M1浏览器复核进行中，M2/M3/M4仍待真实执行。源码完成不等于实验完成。
+
+DEV-008复审结论：独立agent未再发现阻止10人验收的P0/P1。已补回放时间显示、token字段缺失覆盖、CLI/隔离fingerprint归档；任何历史unknown及DEMO/探索分支排除正式比较和CI。20项后端回归通过。M2进入前冻结源码版本。
+
+DEV-008服务验收修复：SSE长连接关闭使用有界graceful shutdown与并行进程等待，管理器识别已退出的僵尸进程，防止常驻服务停止超时；原始试衣checkout未改变。待重新核验登录启动。

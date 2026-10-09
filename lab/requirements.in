@@ -1,0 +1,6 @@
+gdm-concordia==2.4.0
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
+psutil>=7,<8
+httpx>=0.28,<1
+pytest>=8,<9
