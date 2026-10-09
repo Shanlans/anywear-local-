@@ -94,7 +94,8 @@ def state(run:str,request:Request):
     for world in current['worlds'].values():
         for agent in world['agents'].values(): agent['memory']=agent['memory'][-8:]
     return JSONResponse({'run_id':run,'status':row['status'],'error':row['error'],'parent':row['parent'],'parent_seq':row['parent_seq'],
-        'controls':row['controls'],'budget':row['budget'],'state':current,'manifest':row['manifest']},
+        'controls':row['controls'],'budget':row['budget'],'state':current,'manifest':row['manifest'],
+        'updated_wall_ms':round(row['updated']*1000)},
         headers={'ETag':row['state_hash']})
 
 @app.get('/api/lab/runs/{run}/agents/{world}/{agent}')

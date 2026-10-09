@@ -20,7 +20,7 @@ def stop_engine(engine):
     # Drain queues first: releasing a busy slot must not start another service.
     for world, state in engine.s['worlds'].items():
         for aid, agent in state['agents'].items():
-            if agent['status'] not in TERMINAL: engine.abandon(world,aid)
+            if agent['status'] not in TERMINAL: engine.abandon(world,aid,outcome='censored')
     for world, state in engine.s['worlds'].items():
         for aid, agent in state['agents'].items():
             if agent['status'] not in TERMINAL:
@@ -162,10 +162,12 @@ class Store:
             if db.execute("SELECT count(*) FROM jobs WHERE run=? AND status='spawned'",(run,)).fetchone()[0]:
                 return
             self._finalize_stop(db,row)
-    def save(self,run,engine,expected_hash,fence=None,commit_jobs=(),status=None):
+    def save(self,run,engine,expected_hash,fence=None,commit_jobs=(),status=None,expected_status=None):
         engine.invariants()
         with self.tx() as db:
             row=db.execute('SELECT state_hash,fence,status FROM runs WHERE id=?',(run,)).fetchone()
+            if expected_status is not None and row['status']!=expected_status:
+                raise Conflict('CONTROL_STATE_CHANGED')
             if row['state_hash']!=expected_hash or (fence is not None and row['fence']!=fence):
                 raise Conflict('STALE_WORLD_FENCE')
             db.execute('UPDATE runs SET state=?,state_hash=?,updated=? WHERE id=?',

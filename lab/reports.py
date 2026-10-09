@@ -29,7 +29,8 @@ def world_metrics(state,world,costs):
     counts=Counter(a['status'] for a in agents)
     natural=sum(counts[s] for s in NATURAL); paid=len(w['sales'])
     suitable=sum(bool(s['suitable']) for s in w['sales'])
-    waits=[q['seconds'] for q in w['waits']]
+    waits=[q['seconds'] for q in w['waits'] if q['outcome']!='censored']
+    censored_waits=[q['seconds'] for q in w['waits'] if q['outcome']=='censored']
     all_ended=all(a['status'] in NATURAL for a in agents)
     end=max([a['ended_at'] or 0 for a in agents]) if all_ended else state['t']
     window=max(0,end)
@@ -50,6 +51,7 @@ def world_metrics(state,world,costs):
         'purchase_rate_possible_bounds':[paid/n,(paid+n-natural)/n],
         'status_counts':dict(counts),'wait_p50_seconds':quantile(waits,.5),'wait_p95_seconds':quantile(waits,.95),
         'closed_wait_episodes':len(waits),'abandoned_wait_episodes':sum(q['outcome']=='abandoned' for q in w['waits']),
+        'censored_wait_episodes':len(censored_waits),'observed_censored_wait_seconds':censored_waits,
         'open_wait_episodes':sum(a['queue'] is not None for a in agents),
         'window_seconds':window,'window_complete':all_ended,'resources':utilization,
         'preview_count':preview_count,'revenue_cents':revenue,

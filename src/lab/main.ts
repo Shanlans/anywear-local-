@@ -9,6 +9,7 @@ let agentDetail:any=null,events:any[]=[],stream:EventSource|null=null,analysisId
 let displayState:any=null;
 let replayMode=false,replaySeq:number|null=null,runRows:any[]=[],batchRows:any[]=[],lastRefresh=0;
 let stateTimer:any,rangeTimer:any,healthData:any=null;
+let observedSeq:number|null=null,updateLags:number[]=[];
 const t=(key:string)=>translate(language,key);
 const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 const input=(id:string)=>$(id) as HTMLInputElement;
@@ -23,6 +24,7 @@ $('app').innerHTML=`
 <div class="side-heading">${label('newRun')}<span class="version">v0.1</span></div>
 <div class="form-stack"><label>${label('mode')}<select id="mode"><option value="demo" data-i18n="demo">${t('demo')}</option><option value="codex" data-i18n="codex">${t('codex')}</option></select></label>
 <div class="field-pair">${field('people','people',10,1,100)}${field('price','price',120,1,10000)}</div>
+<p class="micro">${label('priceHint')}</p>
 ${field('delay','delay',0,0,60)}${field('budget','budget',200,1,100000)}${field('seed','seed',20261009,0,2147483647)}
 <details><summary>${label('resources')}</summary><div class="field-pair">${field('rooms','rooms',4,1,16)}${field('devices','devices',1,1,8)}</div>
 ${field('noise','noise',.2,0,1,.05)}${field('arrival','arrival',30,1,600)}</details>
@@ -37,7 +39,7 @@ ${field('noise','noise',.2,0,1,.05)}${field('arrival','arrival',30,1,600)}</deta
 <div class="workspace"><section class="stage-panel"><div class="panel-heading"><div><h2 id="view-mode">${t('live')}</h2><p>${label('ordinary')}</p></div><div class="toolbar">
 <button id="pause">Ⅱ ${label('pause')}</button><button id="resume">▶ ${label('resume')}</button><button id="stop" class="danger" title="${t('stopHint')}">■ ${label('stop')}</button><button id="step-event">↦ ${label('stepEvent')}</button><button id="step-decision">↪ ${label('stepDecision')}</button></div></div><p id="stop-hint" class="control-hint">${label('stopHint')}</p>
 <div id="game" class="game"></div><div class="stage-tools"><div><button id="zoom-out">−</button><button id="zoom-in">＋</button><button id="reset">${label('reset')}</button><label class="check"><input id="heat" type="checkbox">${label('heat')}</label><label class="check"><input id="follow" type="checkbox">${label('follow')}</label></div>
-<label class="speed">${label('speed')}<select id="speed"><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
+<label class="speed">${label('speed')}<select id="speed"><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div><p id="render-performance" class="micro control-hint"></p>
 <div class="replay-bar"><span>${label('replay')}</span><input id="replay-range" type="range" min="0" max="0" value="0"><span id="replay-number">0</span><button id="back-live">${label('backLive')}</button></div>
 <div class="branch-row"><button id="fork">⑂ ${label('fork')}</button><p>${label('forkHint')}</p></div></section>
 <aside class="inspector"><div class="panel-heading"><h2>${label('inspector')}</h2><span id="agent-count" class="version">—</span></div>
@@ -77,6 +79,7 @@ function renderRuns(){
 }
 async function selectRun(id:string){
   $('notice').hidden=true;stream?.close();runId=id;analysisId=null;replayMode=false;replaySeq=null;events=[];agentDetail=null;
+  observedSeq=null;updateLags=[];
   const row=runRows.find(r=>r.id===id);if(row)applyForm(row.config);
   $('export').setAttribute('href',`/api/lab/runs/${id}/export`);$('open-report').setAttribute('href',`/api/lab/runs/${id}/report.html`);
   await refreshState();await refreshReport();
@@ -91,7 +94,9 @@ async function selectRun(id:string){
 }
 function scheduleState(){clearTimeout(stateTimer);stateTimer=setTimeout(()=>refreshState().catch(()=>{}),200);}
 async function refreshState(){
-  if(!runId)return;const id=runId;const data=await api(`/runs/${id}/state`);if(id!==runId)return;snapshot=data;lastRefresh=performance.now();
+  if(!runId)return;const id=runId;const data=await api(`/runs/${id}/state`);if(id!==runId)return;
+  if(observedSeq!==null&&data.state.seq>observedSeq&&Number.isFinite(data.updated_wall_ms))updateLags.push(Math.max(0,Date.now()-data.updated_wall_ms));
+  updateLags=updateLags.slice(-100);observedSeq=data.state.seq;snapshot=data;lastRefresh=performance.now();
   $('run-status').textContent=t(data.status);$('run-status').className='status-badge '+data.status.toLowerCase();
   $('run-name').textContent=data.state.config.name+(data.parent?' · ⑂':'');
   if(data.error)notice(t(data.error),true);
@@ -135,11 +140,15 @@ function renderAgent(){
   if(!agentDetail){$('agent-detail').innerHTML=`<p class="micro">${t('selectPerson')}</p>`;return;}
   const a=agentDetail.consumer,o=agentDetail.visible_observation,p=o.persona;
   const reason=a.last_decision?.[language==='zh'?'reason_zh':'reason_en'];
+  const memoryOpen=$('all-memory')?.hasAttribute('open');
   $('agent-detail').innerHTML=`<div class="person-heading"><span class="person-avatar">${a.id.slice(1)}</span><div><h3>${a.id}</h3><span class="mini-status">${t(a.status)}</span></div></div>
   <p class="micro">${t('given')}</p><dl class="traits"><dt>${t('personaBudget')}</dt><dd>SGD ${money(p.budget_cents)}</dd><dt>${t('remaining')}</dt><dd>${clock(o.remaining_seconds??Math.max(0,a.deadline-(a.ended_at??displayState?.t??0)))}</dd>
-  <dt>${t('privacy')}</dt><dd>${p.privacy.toFixed(2)}</dd><dt>${t('trust')}</dt><dd>${p.trust.toFixed(2)}</dd><dt>${t('accept')}</dt><dd>${p.accept_threshold.toFixed(2)}</dd><dt>${t('goal')}</dt><dd>${a.suitable?'✓':a.ended_at!==null?'—':t('pending')}</dd></dl>
+  <dt>${t('stylePreference')}</dt><dd>${p.style_preference.toFixed(2)}</dd><dt>${t('patience')}</dt><dd>${clock(p.patience_seconds)}</dd>
+  <dt>${t('privacy')}</dt><dd>${p.privacy.toFixed(2)}</dd><dt>${t('trust')}</dt><dd>${p.trust.toFixed(2)}</dd><dt>${t('accept')}</dt><dd>${p.accept_threshold.toFixed(2)}</dd><dt>${t('goal')}</dt><dd>${a.suitable?'✓':a.ended_at!==null?'—':t('pending')}</dd></dl><p class="micro">${t('personaHint')}</p>
   <h4>${t('decision')}</h4><div class="decision-card"><strong>${a.last_decision?esc(t(a.last_decision.action==='leave'?'leaveAction':a.last_decision.action)+' '+a.last_decision.sku):'—'}</strong><p>${esc(reason||t('waitingModel'))}</p><small>${t('reason')}</small></div>
-  <h4>${t('memory')} <span>${a.memory.length}</span></h4><div class="memories">${a.memory.slice(-7).reverse().map((m:any)=>`<div><time>${clock(m.time)}</time><span>${esc(t(m.kind))}${m.data.sku?' · '+esc(m.data.sku):''}</span></div>`).join('')}</div>
+  <h4>${t('knownProducts')}</h4><div class="known-products">${Object.entries(a.known||{}).map(([sku,raw])=>{const k:any=raw;return `<div><strong>${esc(sku)}</strong><p>${[['fit',k.fit],['appearance',k.appearance],['previewSignal',k.preview]].filter(([,v])=>typeof v==='number').map(([key,v])=>`${t(String(key))}: ${Number(v).toFixed(2)}`).join(' · ')||t('metadataOnly')}</p></div>`;}).join('')||`<p class="micro">${t('noKnownProducts')}</p>`}</div>
+  <h4>${t('memory')} <span>${a.memory.length}</span></h4><p class="micro">${t('memoryHint')}</p><div class="memories">${a.memory.slice(-7).reverse().map((m:any)=>`<div><time>${clock(m.time)}</time><span>${esc(t(m.kind))}${m.data.sku?' · '+esc(m.data.sku):''}${m.data[language==='zh'?'reason_zh':'reason_en']?`<small>${esc(m.data[language==='zh'?'reason_zh':'reason_en'])}</small>`:''}</span></div>`).join('')}</div>
+  <details id="all-memory" ${memoryOpen?'open':''}><summary>${t('allMemory')} (${a.memory.length})</summary><pre class="memory-json">${esc(JSON.stringify(a.memory,null,2))}</pre></details>
   <details><summary>${t('options')}</summary><select id="manual-choice">${(o.allowed_actions||[]).map((v:any)=>`<option value="${esc(JSON.stringify(v))}">${esc(t(v.action==='leave'?'leaveAction':v.action)+' '+v.sku)}</option>`).join('')}</select><button id="manual" ${(!a.ready||replayMode||snapshot?.status!=='PAUSED')?'disabled':''}>${t('manual')}</button><p class="micro">${t('manualHint')}</p></details>`;
   $('manual').onclick=action(async()=>{const choice=JSON.parse(input('manual-choice').value);const child=await api(`/runs/${runId}/fork`,{expected_hash:snapshot.state.state_hash,world:selected.world,agent:selected.agent,
     decision:{...choice,reason_code:'no_options',reason_zh:'观察者手动干预。',reason_en:'Manual observer intervention.'}});await refreshRuns();await selectRun(child.run_id);});
@@ -204,5 +213,9 @@ async function boot(){nonce=(await api('/session')).nonce;await refreshHealth();
 boot().catch(error=>notice(t('error')+' · '+t(error.message),true));
 setInterval(()=>{if(runId)refreshReport().catch(()=>{});},2500);
 setInterval(()=>{refreshHealth().catch(()=>{});refreshRuns().catch(()=>{});},5000);
+setInterval(()=>{const sorted=[...updateLags].sort((a,b)=>a-b),p95=sorted.length?sorted[Math.ceil(sorted.length*.95)-1]:null;
+  $('render-performance').textContent=`${t('renderFps')}: ${Math.round(game.loop.actualFps)} fps · ${t('updateLag')}: ${p95??'—'} ms (n=${sorted.length})`;
+  $('render-performance').dataset.fps=String(game.loop.actualFps);$('render-performance').dataset.updateP95=String(p95??'');
+},1000);
 // Read-only instrumentation for acceptance; contains no auth or prompts.
 (window as any).__anywearLab={get fps(){return game.loop.actualFps;},get run(){return runId;},get lastRefresh(){return lastRefresh;},get replay(){return replayMode;}};

@@ -53,7 +53,7 @@ def drive(store,run):
     if row['status'] in ('PAUSING','STOPPING'):
         if not any(j['status']=='spawned' for j in jobs):
             if row['status']=='STOPPING': store.finalize_stop(run,row['fence'])
-            else: store.save(run,engine,before,row['fence'],status='PAUSED')
+            else: store.save(run,engine,before,row['fence'],status='PAUSED',expected_status='PAUSING')
         return
     if row['status']!='RUNNING': return
     if row['config']['mode']=='codex' and row['manifest']['source_fingerprint']!=LOADED_CODE:
@@ -61,7 +61,7 @@ def drive(store,run):
         return
     if engine.complete():
         status='COMPLETED' if all(a['status']!='CENSORED' for w in engine.s['worlds'].values() for a in w['agents'].values()) else 'INCOMPLETE'
-        store.save(run,engine,before,row['fence'],status=status); return
+        store.save(run,engine,before,row['fence'],status=status,expected_status='RUNNING'); return
     if engine.ready():
         jobs=store.prepare_jobs(run,engine,row['fence'])
         if all(j['status']=='responded' for j in jobs):
@@ -74,12 +74,12 @@ def drive(store,run):
             breaks=set(row['controls'].get('breakpoints',[]))
             hit=any(e['kind'] in breaks for e in engine.events)
             status='PAUSED' if row['step'] or hit else None
-            store.save(run,engine,before,row['fence'],[j['id'] for j in jobs],status=status)
+            store.save(run,engine,before,row['fence'],[j['id'] for j in jobs],status=status,expected_status='RUNNING')
         return
     breaks=set(row['controls'].get('breakpoints',[]))
     engine.advance(one_event=row['step']=='step_event',breakpoints=breaks)
     hit=any(e['kind'] in breaks for e in engine.events)
-    store.save(run,engine,before,row['fence'],status='PAUSED' if row['step']=='step_event' or hit else None)
+    store.save(run,engine,before,row['fence'],status='PAUSED' if row['step']=='step_event' or hit else None,expected_status='RUNNING')
 
 def recover_processes(store):
     with store.connect() as db:
@@ -142,7 +142,7 @@ def main():
                 except Exception as error:
                     logging.error('DRIVE_FAILED run=%s type=%s',row['id'],type(error).__name__)
                     with store.tx() as db:
-                        db.execute("UPDATE runs SET status='PAUSED',error='ENGINE_INTEGRITY' WHERE id=?",(row['id'],))
+                        db.execute("UPDATE runs SET status='PAUSED',error='ENGINE_INTEGRITY' WHERE id=? AND status IN ('RUNNING','PAUSING')",(row['id'],))
             STOP.wait(.08)
     finally:
         STOP.set(); pool.shutdown(wait=True,cancel_futures=True)

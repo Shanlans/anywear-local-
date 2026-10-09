@@ -74,3 +74,9 @@ REQ-011 / DEV-008，Python3.12.14、Concordia2.4.0、Phaser3.90、CodexCLI0.162.
 ## TEST-016 · 停止控制与首轮真实10人 · 2026-10-09
 
 DEV-009 / REQ-011 / BUG-016。首轮真实运行run-a46a2c82179c：20独立消费者上下文、34独立CLI session、全部gpt-6.1-sol，tools=0/input=1，0失败/未知，10/10分别自然离店；0购买，回放一致。本机导出发生在旧版停止覆盖COMPLETED之后，导出如实标为STOPPED/不完整，新版再次验收。新增停止测试覆盖库存/队列释放、未进入截尾不计ARRIVED、停止不可恢复、未知调用及重启后保持停止意图、迟到拒绝和零调用回放。23项pytest通过，17项Node及构建通过。浏览器顶部停止100人DEMO后显示已停止和190截尾，双语/最终服务验收继续。
+
+## TEST-017 · M2真实10人 / M3进程恢复 · 2026-10-09
+
+DEV-010 / BUG-017。run-c0c1de370f35，d7e7da1干净版本：36/200次CLI，36唯一session，20逻辑上下文，0失败/未知，tools=0/input=1；actual gpt-6.1-sol。两店10人自然终止，control1支付/Anywear0支付，无截尾。输入48013/输出3919token，金额未知；事件回放state hash一致。结果是合成实验，非市场证明。
+
+M3独立DEMO worker SIGKILL恢复：seq23/hash b9a7ec0164048c148db70ded916351fca7c4c5df31c3a772e60282335b82843b，重启fence2，最终seq644 COMPLETED，回放一致，CLI0；不冒充真实模型中断。25项pytest加入停止事务竞态和截尾等待回归。

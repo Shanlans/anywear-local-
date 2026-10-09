@@ -206,7 +206,7 @@ class Engine:
             self.emit('SERVICE_STARTED',w,aid,resource=resource,sku=entry['sku'],slot=slot,until=busy['until'])
             self.schedule(busy['until'],w,aid,'service_done',{'resource':resource,'sku':entry['sku'],
                 'slot':slot,'token':entry['token']})
-    def abandon(self,w,aid):
+    def abandon(self,w,aid,outcome='abandoned'):
         world=self.s['worlds'][w]; agent=world['agents'][aid]
         if agent['reserved_sku']:
             sku=agent['reserved_sku']; stock=world['stock'][sku]
@@ -217,9 +217,9 @@ class Engine:
             q=agent['queue']; r=world['resources'][q['resource']]
             r['queue']=[item for item in r['queue'] if item['token']!=q['token']]
             world['waits'].append({'agent':aid,'resource':q['resource'],'joined':q['joined'],
-                'ended':self.s['t'],'seconds':self.s['t']-q['joined'],'outcome':'abandoned'})
+                'ended':self.s['t'],'seconds':self.s['t']-q['joined'],'outcome':outcome})
             agent['queue']=None
-            self.emit('QUEUE_ABANDONED',w,aid,resource=q['resource'])
+            self.emit('QUEUE_CENSORED' if outcome=='censored' else 'QUEUE_ABANDONED',w,aid,resource=q['resource'])
     def finish(self,w,aid,status,**data):
         world=self.s['worlds'][w]; agent=world['agents'][aid]
         self.abandon(w,aid)

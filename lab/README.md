@@ -88,3 +88,13 @@ pnpm lab:package --run RUN_ID
 游戏分支 `feature/experiment-game` 基于重新核验的远端 `feature/live-fitting-demo`，SHA `6affbf9d78560c7ccde921c0d55db1ba7e686d5e`。PR 暂以该功能分支为基底，依赖其既有代码；不自动合并 main。原摄像头真人服装效果和连续操作验收仍独立待现场确认。代码、协议、锁文件与明确的测试夹具入 Git；真实运行报告完整数据只留本机，公共台账只含脱敏摘要和依据。CI 不运行收费模型。
 
 实际阶段状态见 [开发台账](../docs/DEVELOPMENT_LEDGER.md) 和本机 `deliverables/` 报告。未执行的实验没有结果；代码通过不等于真实模型实验通过，更不等于市场验证。
+
+## Persona、记忆和价格的当前简化
+
+每人7轴：预算、时间、风格、排队耐心、隐私、技术信任、接受阈值；均为假设分布独立分层抽样，不是经验证的人格或新加坡人口分布。没有预设年龄/职业。所有6个SKU使用同一单件价格（默认SGD120），不是平均价；低预算消费者可能买不起全部商品。
+
+每条件保存私有亲历事件及稳定ID；提示载入最近12条加最多4条关联检索记忆（本地字符trigram embedding，并非经过验证的心理记忆模型）。右侧可查看已知商品信号和完整结构化记忆，模型没有全局观察者权限。
+
+操作者停止时排队记录为censored，已观察等待单列，排除完整等待分位数及主动放弃数。画面监控显示本机FPS，以及最近最多100个已观察到的新状态版本的提交至接收延迟p95；首次历史快照和重复心跳不入样本。该观察采样不是每个事件的完整延迟分布，离开页面时不采样。
+
+Persona uses seven assumed independent shopping axes, not a validated personality model. All six SKUs have the same per-item price. Memories are private to consumer and condition. Operator-stop queue observations are censored and excluded from completed waiting-time percentiles.

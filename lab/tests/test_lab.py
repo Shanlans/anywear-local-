@@ -203,3 +203,40 @@ def test_stop_before_arrival_keeps_entered_zero(tmp_path):
     s.control(r,'stop')
     assert all(m['entered']==0 and m['censored']==10 and m['left']==0 for m in build_report(s,r)['worlds'].values())
     assert replay(s,r)['matched_saved_state']
+
+
+def test_stale_running_drive_cannot_override_stop(tmp_path,monkeypatch):
+    s=Store(tmp_path/'race.db');r=s.create({'n_agents':1,'breakpoints':['LEFT']})
+    s.control(r,'start');drive(s,r)
+    original=s.prepare_jobs
+    def race(run,engine,fence):
+        jobs=original(run,engine,fence)
+        attempts=[s.claim(j['id'],fence) for j in jobs]
+        s.control(run,'stop');assert s.get(run)['status']=='STOPPING'
+        for j,a in zip(jobs,attempts):
+            d={'action':'leave','sku':'','reason_code':'fatigue','reason_zh':'测试','reason_en':'Test'}
+            s.respond(j['id'],a,fence,d,{'mode':'demo'})
+        return s.jobs(run,engine.hash())
+    monkeypatch.setattr(s,'prepare_jobs',race)
+    with pytest.raises(Conflict,match='CONTROL_STATE_CHANGED'): drive(s,r)
+    assert s.get(r)['status']=='STOPPING'
+    drive(s,r)
+    p=build_report(s,r)
+    assert s.get(r)['status']=='STOPPED' and p['usage']['valid_decisions']==0
+    assert all(m['left']==0 and m['censored']==1 for m in p['worlds'].values())
+    assert replay(s,r)['matched_saved_state']
+
+
+def test_operator_stop_wait_is_censored_not_abandoned(tmp_path):
+    s=Store(tmp_path/'censored-queue.db');r=s.create({'n_agents':1,'price_cents':3000})
+    row=s.get(r);e=Engine(row['state']);e.advance()
+    for w in e.s['worlds']:
+        e.s['worlds'][w]['resources']['checkout']['external_until']=1000
+        e.enqueue(w,'C001','checkout','S1')
+    e.s['t']=60
+    s.save(r,e,row['state_hash']);s.control(r,'stop')
+    p=build_report(s,r)
+    for m in p['worlds'].values():
+        assert m['closed_wait_episodes']==m['abandoned_wait_episodes']==0
+        assert m['wait_p95_seconds'] is None
+        assert m['censored_wait_episodes']==1 and m['observed_censored_wait_seconds']==[60]
