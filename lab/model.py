@@ -167,31 +167,53 @@ class CodexModel(lm.LanguageModel):
             with RequestGuard(prompt,schema,self.model) as guard:
                 cmd=cli_command(folder,schema_path,answer,guard.url,self.model,guard.nonce)
                 proc=subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,text=True,start_new_session=True)
+                    stderr=subprocess.DEVNULL,bufsize=0,start_new_session=True)
+                started=time.monotonic()
                 if self.on_spawn:
                     try: self.on_spawn(proc.pid)
                     except Exception:
                         kill_group(proc); raise ModelFailure('SPAWN_RECORD_FAILED',True)
-                proc.stdin.write(prompt); proc.stdin.close()
-                selector=selectors.DefaultSelector(); selector.register(proc.stdout,selectors.EVENT_READ)
-                started=time.monotonic(); usage=None; session_id=None; tool=False; item_types=set()
+                selector=selectors.DefaultSelector()
+                os.set_blocking(proc.stdout.fileno(),False)
+                os.set_blocking(proc.stdin.fileno(),False)
+                selector.register(proc.stdout,selectors.EVENT_READ)
+                pending_input=prompt.encode('utf-8'); input_offset=0; pending_output=b''; output_closed=False
+                if pending_input: selector.register(proc.stdin,selectors.EVENT_WRITE)
+                else: proc.stdin.close()
+                usage=None; session_id=None; tool=False; item_types=set()
+                def consume(line):
+                    nonlocal usage,session_id,tool
+                    try: event=json.loads(line.decode('utf-8',errors='replace'))
+                    except ValueError: return
+                    if event.get('type')=='thread.started': session_id=event.get('thread_id')
+                    if event.get('type')=='turn.completed': usage=event.get('usage')
+                    item=event.get('item',{})
+                    if item.get('type'): item_types.add(item['type'])
+                    if item.get('type') not in (None,'agent_message','reasoning','error'): tool=True
+                    # Reasoning, tool bodies and error strings are discarded.
                 try:
                     while True:
                         if time.monotonic()-started>self.timeout or (self.cancel and self.cancel()):
                             kill_group(proc); raise ModelFailure('TIMEOUT_UNKNOWN',True,usage)
-                        if selector.select(.2):
-                            line=proc.stdout.readline()
-                            if not line and proc.poll() is not None: break
-                            try: event=json.loads(line)
-                            except ValueError: continue
-                            if event.get('type')=='thread.started': session_id=event.get('thread_id')
-                            if event.get('type')=='turn.completed': usage=event.get('usage')
-                            item=event.get('item',{})
-                            if item.get('type'): item_types.add(item['type'])
-                            if item.get('type') not in (None,'agent_message','reasoning','error'):
-                                tool=True
-                            # reasoning, stdout, tool bodies and error strings are discarded.
-                        elif proc.poll() is not None: break
+                        for key,_ in selector.select(.2):
+                            if key.fileobj is proc.stdin:
+                                try: written=os.write(proc.stdin.fileno(),pending_input[input_offset:input_offset+65536])
+                                except BrokenPipeError: written=0
+                                input_offset+=written
+                                if not written or input_offset==len(pending_input):
+                                    selector.unregister(proc.stdin); proc.stdin.close()
+                            else:
+                                chunk=os.read(proc.stdout.fileno(),65536)
+                                if not chunk:
+                                    output_closed=True; selector.unregister(proc.stdout)
+                                    if pending_output: consume(pending_output); pending_output=b''
+                                else:
+                                    pending_output+=chunk
+                                    if len(pending_output)>1_048_576:
+                                        raise ModelFailure('CLI_OUTPUT_LIMIT_UNKNOWN',True,usage)
+                                    while b'\n' in pending_output:
+                                        line,pending_output=pending_output.split(b'\n',1); consume(line)
+                        if output_closed and proc.poll() is not None: break
                     proc.wait(timeout=3)
                     self.metadata={**guard.evidence,'session_id':session_id,'cli_usage':usage,
                         'wall_seconds':round(time.monotonic()-started,3),'tool_event':tool,
@@ -204,7 +226,7 @@ class CodexModel(lm.LanguageModel):
                     if proc.returncode or not answer.exists():
                         raise ModelFailure('CLI_FAILED',True,usage)
                     response=Decision.model_validate_json(answer.read_text(encoding='utf-8'))
-                    if guard.evidence.get('actual_model') not in (None,self.model):
+                    if guard.evidence.get('actual_model')!=self.model:
                         raise ModelFailure('MODEL_MISMATCH',False,usage)
                     return response.model_dump_json()
                 finally:
@@ -213,3 +235,4 @@ class CodexModel(lm.LanguageModel):
                             'wall_seconds':round(time.monotonic()-started,3),'tool_event':tool,
                             'item_types':sorted(item_types)}
                     kill_group(proc); selector.close(); proc.stdout.close()
+                    if not proc.stdin.closed: proc.stdin.close()

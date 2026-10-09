@@ -104,3 +104,7 @@ Persona uses seven assumed independent shopping axes, not a validated personalit
 `.venv/bin/python scripts/verify_lab_run.py RUN_ID` 对已完成的真实模型场次检查全部自然终止、独立会话、单消费者输入、零工具、模型与Concordia组件、库存/支付/资源、SQLite、checkpoint和零调用回放，导出验证JSON、行为漏斗CSV及报告ZIP/HTML。它拒绝不完整、历史失败/未知、探索分支和未提交源码启动的场次，不调用模型。使用运行报告记录的引擎版本；旧引擎hash不符会拒绝回放。
 
 右侧个人目标区分“运行中／已达成（模拟）／未达成／数据不足”；技术截尾属于数据不足。完整记忆展开后保留滚动位置，避免后台心跳打断阅读。
+
+## CLI 传输截止时间修复（发布副本）
+
+输入与输出管道均使用非阻塞读写；CLI只输出半行或暂不读stdin时仍按截止时间取消。等待中的单条输出缓冲上限1MiB，超限作为未知调用暂停，不保存原始内容。超时另有有界进程清理时间；未知调用可能已消耗额度，不能自动重提交。四项离线假CLI回归覆盖半行阻塞、较大stdin、UTF-8分片/末行无换行和缓冲上限。它们不调用上游模型。适配器源码变更使隔离fingerprint失效，部署该版本前必须重新执行真实探针。
