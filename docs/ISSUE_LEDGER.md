@@ -71,3 +71,5 @@ BUG-015补充：收银排队增加耐心提醒，可放弃并释放预约；世�
 ## BUG-017 · P1 · 停止事务竞态及排队截尾指标 · 已修复待发布
 
 独立agent只读复现：drive已读RUNNING，随后STOPPING且响应回到，旧save可将断点结果提交为PAUSED，误落地LEFT。修复：worker所有提交必须在事务内匹配预期RUNNING/PAUSING，STOPPING只能finalize_stop收尾。回归确定复现旧竞态，现抛CONTROL_STATE_CHANGED，无决策落地、最终CENSORED；停止过程中未知恢复保持停止意图。停止时排队原为abandoned，改QUEUE_CENSORED/outcome=censored，单列观察等待，不纳入主动放弃数/完整p50/p95。25项pytest通过。
+
+BUG-017追加复审：版本不符告警也限定只修改仍RUNNING的实验，不能覆盖并发停止的STOPPED。新增无模型竞态回归，26项pytest通过。

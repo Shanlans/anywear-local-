@@ -80,3 +80,5 @@ DEV-009 / REQ-011 / BUG-016。首轮真实运行run-a46a2c82179c：20独立消�
 DEV-010 / BUG-017。run-c0c1de370f35，d7e7da1干净版本：36/200次CLI，36唯一session，20逻辑上下文，0失败/未知，tools=0/input=1；actual gpt-6.1-sol。两店10人自然终止，control1支付/Anywear0支付，无截尾。输入48013/输出3919token，金额未知；事件回放state hash一致。结果是合成实验，非市场证明。
 
 M3独立DEMO worker SIGKILL恢复：seq23/hash b9a7ec0164048c148db70ded916351fca7c4c5df31c3a772e60282335b82843b，重启fence2，最终seq644 COMPLETED，回放一致，CLI0；不冒充真实模型中断。25项pytest加入停止事务竞态和截尾等待回归。
+
+BUG-017追加复审：版本不符告警也限定只修改仍RUNNING的实验，不能覆盖并发停止的STOPPED。新增无模型竞态回归，26项pytest通过。

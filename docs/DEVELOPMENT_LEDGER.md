@@ -171,3 +171,5 @@ REQ-011 / DEC-015 / BUG-016 / TEST-016。首轮run-a46a2c82179c在18bb7e干净�
 REQ-011 / DEC-016 / TEST-017 / BUG-017。d7e7da1干净版本真实验收run-c0c1de370f35自然完成：20消费者上下文，36个唯一临时会话，actual gpt-6.1-sol，全部tools=0/input=1，0失败/未知/截尾；token48013+3919，金额未知。control1购买9离店；Anywear0购买10离店，假设经营目标不满足；保存决策回放一致，本机报告ZIP/HTML已交付目录保存。
 
 独立agent复审发现停止竞态与排队截尾混入等待指标，现增加事务expected_status及censored等待口径，25项pytest通过。独立DEMO worker在seq23硬中断，重启后seq644自然完成、fence2、回放一致、0模型调用，证据本机m3-process-recovery.json。Persona/Memory/统一价格文案及帧率/提交观察延迟可见。新的100人基准待冻结此版本并启动；关闭网页10分钟与100人性能尚待实测。
+
+BUG-017追加复审：版本不符告警也限定只修改仍RUNNING的实验，不能覆盖并发停止的STOPPED。新增无模型竞态回归，26项pytest通过。

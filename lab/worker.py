@@ -57,7 +57,7 @@ def drive(store,run):
         return
     if row['status']!='RUNNING': return
     if row['config']['mode']=='codex' and row['manifest']['source_fingerprint']!=LOADED_CODE:
-        with store.tx() as db: db.execute("UPDATE runs SET status='PAUSED',error='SOURCE_VERSION_MISMATCH' WHERE id=?",(run,))
+        with store.tx() as db: db.execute("UPDATE runs SET status='PAUSED',error='SOURCE_VERSION_MISMATCH' WHERE id=? AND status='RUNNING'",(run,))
         return
     if engine.complete():
         status='COMPLETED' if all(a['status']!='CENSORED' for w in engine.s['worlds'].values() for a in w['agents'].values()) else 'INCOMPLETE'

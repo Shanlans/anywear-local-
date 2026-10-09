@@ -240,3 +240,15 @@ def test_operator_stop_wait_is_censored_not_abandoned(tmp_path):
         assert m['closed_wait_episodes']==m['abandoned_wait_episodes']==0
         assert m['wait_p95_seconds'] is None
         assert m['censored_wait_episodes']==1 and m['observed_censored_wait_seconds']==[60]
+
+
+def test_version_alarm_cannot_overwrite_operator_stop(tmp_path,monkeypatch):
+    s=Store(tmp_path/'version-race.db');r=s.create({'n_agents':1})
+    s.control(r,'start');old=s.get;stale=old(r)
+    stale['config']['mode']='codex';stale['manifest']['source_fingerprint']='old-version'
+    def racing_get(run):
+        s.control(run,'stop')
+        return stale
+    monkeypatch.setattr(s,'get',racing_get)
+    drive(s,r)
+    assert old(r)['status']=='STOPPED' and old(r)['error'] is None
