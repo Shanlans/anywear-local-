@@ -98,3 +98,5 @@ DEV-012 / BUG-019。原版半行stdout假CLI：0.25s截止配置，3.517s才返�
 DEV-012补充：实际模型标识缺失也拒绝行动，不能把未验证模型当作通过；新增缺失/不符两种离线回归，共32项pytest。固定提示/请求隔离逻辑未改，真实新指纹门禁仍待执行。
 
 最终候选复核：17项Node、TypeScript与生产构建再次通过；默认沙箱不允许测试服务监听，首次检查因此等待并清理，仅在允许本机监听后完成通过。未调用真实模型，未部署候选。既有浏览器验收仍对应旧发布；本次重新读取主页面遇浏览器连接超时，未把它记成候选页面验证成功。
+
+2026-10-09 12:26:42 UTC，干净fd30c26修复候选执行一次真实隔离探针并通过：actual gpt-6.1-sol、CLI0.162.0-alpha.2、requests=1/input=1/tools=0/tool_event=false、结构化leave/no_options有效，session唯一，wall4.682s。观察token278+46，金额未知；未保存reasoning或原始事件流。adapter hash c36751f0e7aed4c8ebf8fbcbba97e18009da4142c9f4da013c96b223ef9b7605；组件hash与旧版一致。此调用不是购物实验，不改变100人状态。GitHub CI run37929759304成功；只读主服务检查HTTP200、心跳新鲜、alarms=[]、worker active0，100人仍PAUSED143/200、307尝试、0失败/未知。

@@ -108,3 +108,5 @@ Persona uses seven assumed independent shopping axes, not a validated personalit
 ## CLI 传输截止时间修复（发布副本）
 
 输入与输出管道均使用非阻塞读写；CLI只输出半行或暂不读stdin时仍按截止时间取消。等待中的单条输出缓冲上限1MiB，超限作为未知调用暂停，不保存原始内容。超时另有有界进程清理时间；未知调用可能已消耗额度，不能自动重提交。四项离线假CLI回归覆盖半行阻塞、较大stdin、UTF-8分片/末行无换行和缓冲上限。它们不调用上游模型。适配器源码变更使隔离fingerprint失效，部署该版本前必须重新执行真实探针。
+
+fd30c26修复候选于2026-10-09 12:26:42 UTC通过一次真实探针：actual gpt-6.1-sol、requests=1、input=1、tools=0、tool_event=false，结构化行动有效，token278+46，金额未知。探针仅验证适配器，不计入消费者实验或100人完成数。本机证据为candidate-fd30c26-isolation-probe.json。当前服务保持旧冻结版本，候选未部署；新安装或CLI/适配器指纹变化仍须在自己的本机重新执行探针，下载的源码不携带已通过门禁文件。
