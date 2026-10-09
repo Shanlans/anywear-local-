@@ -52,7 +52,8 @@ def drive(store,run):
     jobs=store.jobs(run, before)
     if row['status'] in ('PAUSING','STOPPING'):
         if not any(j['status']=='spawned' for j in jobs):
-            store.save(run,engine,before,row['fence'],status='PAUSED' if row['status']=='PAUSING' else 'STOPPED')
+            if row['status']=='STOPPING': store.finalize_stop(run,row['fence'])
+            else: store.save(run,engine,before,row['fence'],status='PAUSED')
         return
     if row['status']!='RUNNING': return
     if row['config']['mode']=='codex' and row['manifest']['source_fingerprint']!=LOADED_CODE:
@@ -134,6 +135,10 @@ def main():
                                         break
                                 attempt=store.claim(job['id'],job['fence'])
                                 if attempt: futures[job['id']]=pool.submit(execute,store,job,attempt,current['config'])
+                except Conflict:
+                    # A control request may win the transaction race with drive().
+                    # Its stopped/paused checkpoint must remain authoritative.
+                    logging.info('CONTROL_STATE_CHANGED run=%s',row['id'])
                 except Exception as error:
                     logging.error('DRIVE_FAILED run=%s type=%s',row['id'],type(error).__name__)
                     with store.tx() as db:

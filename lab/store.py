@@ -9,10 +9,24 @@ import importlib.metadata
 import time
 import uuid
 from pathlib import Path
-from .common import DATA, ROOT, RunConfig, canonical, digest
+from .common import DATA, ROOT, TERMINAL, RunConfig, canonical, digest
 from .engine import Engine
 
 class Conflict(Exception): pass
+
+def stop_engine(engine):
+    """An observer stop is censoring, never a consumer's decision to leave."""
+    engine.emit('EXPERIMENT_STOPPED','control',reason='operator_stop')
+    # Drain queues first: releasing a busy slot must not start another service.
+    for world, state in engine.s['worlds'].items():
+        for aid, agent in state['agents'].items():
+            if agent['status'] not in TERMINAL: engine.abandon(world,aid)
+    for world, state in engine.s['worlds'].items():
+        for aid, agent in state['agents'].items():
+            if agent['status'] not in TERMINAL:
+                engine.finish(world,aid,'CENSORED',reason='operator_stop')
+    engine.s['agenda']=[]
+    engine.invariants()
 
 class Store:
     def __init__(self,path=None):
@@ -104,6 +118,11 @@ class Store:
         with self.tx() as db:
             row=db.execute('SELECT * FROM runs WHERE id=?',(run,)).fetchone()
             if not row: raise KeyError(run)
+            if row['status'] in ('STOPPING','STOPPED'):
+                if command=='stop': return
+                raise Conflict('RUN_STOPPED_CREATE_NEW')
+            if row['status']=='COMPLETED' and command in ('pause','stop'):
+                raise Conflict('ALREADY_COMPLETED')
             if command=='step_event' and Engine(json.loads(row['state'])).ready():
                 raise Conflict('DECISION_FRONTIER_REQUIRES_DECISION_STEP')
             inflight=db.execute("SELECT count(*) FROM jobs WHERE run=? AND status='spawned'",(run,)).fetchone()[0]
@@ -113,7 +132,10 @@ class Store:
                     raise Conflict('UNKNOWN_REQUIRES_RESUBMIT')
                 status='RUNNING'; step=command if command.startswith('step_') else None
             elif command=='pause': status='PAUSING' if inflight else 'PAUSED'; step=None
-            elif command=='stop': status='STOPPED' if not inflight else 'STOPPING'; step=None
+            elif command=='stop':
+                if not inflight:
+                    self._finalize_stop(db,row); return
+                status='STOPPING'; step=None
             elif command in ('resubmit_unknown','retry_failed'):
                 if inflight: raise Conflict('INFLIGHT')
                 old='unknown' if command=='resubmit_unknown' else 'failed'
@@ -124,6 +146,22 @@ class Store:
                 db.execute('UPDATE runs SET budget=?,updated=? WHERE id=?',(budget,time.time(),run)); return
             else: raise ValueError('UNKNOWN_COMMAND')
             db.execute('UPDATE runs SET status=?,step=?,updated=?,error=NULL WHERE id=?',(status,step,time.time(),run))
+    def _finalize_stop(self,db,row):
+        engine=Engine(json.loads(row['state'])); stop_engine(engine)
+        db.execute("UPDATE runs SET state=?,state_hash=?,status='STOPPED',step=NULL,updated=? WHERE id=?",
+                   (canonical(engine.s),engine.hash(),time.time(),row['id']))
+        for event in engine.events:
+            db.execute('INSERT INTO events VALUES(?,?,?)',(row['id'],event['seq'],canonical(event)))
+        db.execute("UPDATE jobs SET status='cancelled' WHERE run=? AND status IN ('queued','responded')",(row['id'],))
+        db.execute('INSERT OR REPLACE INTO checkpoints VALUES(?,?,?,?)',
+                   (row['id'],engine.s['seq'],canonical(engine.s),engine.hash()))
+    def finalize_stop(self,run,fence):
+        with self.tx() as db:
+            row=db.execute('SELECT * FROM runs WHERE id=?',(run,)).fetchone()
+            if row['status']!='STOPPING' or row['fence']!=fence: raise Conflict('STALE_WORLD_FENCE')
+            if db.execute("SELECT count(*) FROM jobs WHERE run=? AND status='spawned'",(run,)).fetchone()[0]:
+                return
+            self._finalize_stop(db,row)
     def save(self,run,engine,expected_hash,fence=None,commit_jobs=(),status=None):
         engine.invariants()
         with self.tx() as db:
@@ -198,7 +236,7 @@ class Store:
                        ('unknown' if unknown else ('failed' if error else 'responded'),time.time(),canonical(metadata),attempt))
             if retry: db.execute('UPDATE jobs SET retries=retries+1 WHERE id=?',(job,))
             if error:
-                if not retry: db.execute("UPDATE runs SET status='PAUSED',error=?,updated=? WHERE id=?",(error,time.time(),row['run']))
+                if not retry: db.execute("UPDATE runs SET status=CASE WHEN status='STOPPING' THEN status ELSE 'PAUSED' END,error=?,updated=? WHERE id=?",(error,time.time(),row['run']))
                 db.execute('INSERT INTO issues VALUES(?,?,?,?,?,?,?,?,?)',
                     ('issue-'+uuid.uuid4().hex[:10],row['run'],None,error,'P1','open',
                      canonical({'job':job,'unknown':unknown}),time.time(),None))
@@ -217,7 +255,7 @@ class Store:
             db.execute('UPDATE runs SET fence=fence+1')
             db.execute("UPDATE jobs SET status='unknown',error='CRASH_UNKNOWN' WHERE status='spawned'")
             db.execute("UPDATE attempts SET status='unknown',ended=? WHERE status IN ('reserved','spawned')",(time.time(),))
-            db.execute("UPDATE runs SET status='PAUSED',error='CRASH_UNKNOWN' WHERE id IN (SELECT run FROM jobs WHERE status='unknown')")
+            db.execute("UPDATE runs SET status=CASE WHEN status IN ('STOPPING','STOPPED') THEN status ELSE 'PAUSED' END,error='CRASH_UNKNOWN' WHERE id IN (SELECT run FROM jobs WHERE status='unknown')")
             db.execute('UPDATE jobs SET fence=(SELECT fence FROM runs WHERE runs.id=jobs.run) WHERE status IN (\'queued\',\'responded\',\'unknown\',\'failed\')')
     def issue_list(self,run=None):
         with self.connect() as db:

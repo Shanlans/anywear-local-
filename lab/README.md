@@ -27,7 +27,13 @@ pnpm test
 
 管理器拒绝覆盖占用端口。网页关闭后 supervisor、API、worker 继续运行；本机睡眠不会补跑购物时间。恢复后从当前逻辑时刻继续。关机/注销导致进程退出，重新启动会校验持久状态；不确定的模型调用会暂停等待明确重提交。持续在线依赖本机供电、登录和网络，不提供云端 24/7 保证。
 
-macOS 登录后启动：`pnpm lab:install-login`；移除：`pnpm lab:uninstall-login`。安装器写 `~/Library/LaunchAgents/local.anywear.consumer-lab.plist`，保留本机路径和可执行文件路径，不写凭据。安装前先构建。使用 launchd 时请用 `launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/local.anywear.consumer-lab.plist` 停止常驻任务，否则 KeepAlive 会重启；卸载命令也会停止服务。
+macOS 登录后启动：`pnpm lab:install-login`；移除：`pnpm lab:uninstall-login`。安装器写 `~/Library/LaunchAgents/local.anywear.consumer-lab.plist`，保留本机路径和可执行文件路径，不写凭据。安装前先构建。安装登录启动后，`pnpm lab:stop` 会先卸载当前 launchd 任务，避免 KeepAlive 自动重启；`pnpm lab:start` / `lab:restart` 重新加载，登录启动配置保留。卸载命令会停止服务并移除配置。
+
+## 暂停、停止与退出网页
+
+游戏顶部提供 **暂停 / 继续 / 停止本场**。暂停保留进度，可继续。停止不再发起新模型调用；已经发出的调用允许结束（或超时），随后冻结世界、释放队列和库存预约，未完成消费者记为 `CENSORED: operator_stop`，不计作主动离店。记录、用量和不确定调用均保留；不能继续已停止的实验，可新建或创建探索分支。已自然完成的场次不能再停止。关闭网页继续运行；`lab:stop` 则停止整个本机服务，重启后按持久状态恢复。
+
+Pause resumes. **Stop this run** is final for that run: no new calls, active calls settle first, pending shoppers are censored, and records remain. Stopping does not undo consumed allowance. Closing the browser keeps experiments running.
 
 ## 真实模型：无需 API key，消耗账号额度
 

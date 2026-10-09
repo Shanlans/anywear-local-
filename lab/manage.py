@@ -14,6 +14,9 @@ from .common import DATA,ROOT
 
 LABEL='local.anywear.consumer-lab'
 
+def login_target():
+    return Path.home()/'Library/LaunchAgents'/f'{LABEL}.plist'
+
 def process():
     try:
         saved=json.loads((DATA/'supervisor.json').read_text()); proc=psutil.Process(saved['pid'])
@@ -41,9 +44,12 @@ def start():
             except OSError: raise SystemExit(f'Port {port} is occupied; existing service left running.')
     subprocess.run([node,str(ROOT/'node_modules/vite/bin/vite.js'),'build'],cwd=ROOT,check=True)
     DATA.mkdir(parents=True,exist_ok=True)
-    with (DATA/'supervisor.log').open('ab',buffering=0) as log:
-        subprocess.Popen([sys.executable,'-m','lab.supervisor'],cwd=ROOT,env={**os.environ,'ANYWEAR_NODE':node,'ANYWEAR_CODEX':os.environ.get('ANYWEAR_CODEX') or shutil.which('codex') or ''},
-                         stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True)
+    if sys.platform=='darwin' and login_target().exists():
+        subprocess.run(['launchctl','bootstrap',f'gui/{os.getuid()}',str(login_target())],check=True)
+    else:
+        with (DATA/'supervisor.log').open('ab',buffering=0) as log:
+            subprocess.Popen([sys.executable,'-m','lab.supervisor'],cwd=ROOT,env={**os.environ,'ANYWEAR_NODE':node,'ANYWEAR_CODEX':os.environ.get('ANYWEAR_CODEX') or shutil.which('codex') or ''},
+                             stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True)
     for _ in range(40):
         if process():
             try:
@@ -55,8 +61,13 @@ def start():
 
 def stop():
     p=process()
+    if sys.platform=='darwin' and login_target().exists():
+        subprocess.run(['launchctl','bootout',f'gui/{os.getuid()}',str(login_target())],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        p=process()
     if p:
-        p.send_signal(signal.SIGTERM)
+        try: p.send_signal(signal.SIGTERM)
+        except psutil.NoSuchProcess: p=None
+    if p:
         deadline=time.monotonic()+15
         while p.is_running():
             try:
@@ -68,7 +79,7 @@ def stop():
 
 def login_service(remove=False):
     if sys.platform!='darwin': raise SystemExit('Login service is supported on macOS; see README for other hosts.')
-    target=Path.home()/'Library/LaunchAgents'/f'{LABEL}.plist'; domain=f'gui/{os.getuid()}'
+    target=login_target(); domain=f'gui/{os.getuid()}'
     if target.exists(): subprocess.run(['launchctl','bootout',domain,str(target)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     if remove:
         target.unlink(missing_ok=True); print('Login service removed.'); return

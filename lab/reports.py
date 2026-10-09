@@ -42,7 +42,8 @@ def world_metrics(state,world,costs):
             'queue_length':len(r['queue']),'busy':len(r['busy']),'capacity':r['capacity']}
     preview_count=sum(s['resource']=='preview' for s in w['services'])+len(w['resources']['preview']['busy'])
     revenue=sum(s['price_cents'] for s in w['sales'])
-    return {'planned':n,'entered':n-counts['NOT_ARRIVED'],'natural_terminal':natural,
+    entered=sum(any(m['kind']=='ARRIVED' for m in a['memory']) for a in agents)
+    return {'planned':n,'entered':entered,'natural_terminal':natural,
         'pending':n-natural-counts['CENSORED'],'censored':counts['CENSORED'],
         'paid':paid,'left':counts['LEFT'],'time_limit':counts['TIME_LIMIT'],'suitable':suitable,
         'purchase_rate':paid/n,'leave_rate':(counts['LEFT']+counts['TIME_LIMIT'])/n,'suitable_rate':suitable/n,
@@ -189,7 +190,11 @@ def replay(store,run,at_seq=None,internal=False):
     decisions=[e for e in expected_events if e['kind']=='DECISION']
     cursor=0; generated=[]; target=at_seq if at_seq is not None else row['state']['seq']
     while engine.s['seq']<target and not engine.complete():
-        if engine.ready():
+        next_event=next((e for e in expected_events if e['seq']==engine.s['seq']+1),None)
+        if next_event and next_event['kind']=='EXPERIMENT_STOPPED':
+            from .store import stop_engine
+            engine.events=[]; stop_engine(engine)
+        elif engine.ready():
             pairs=engine.ready(); engine.events=[]
             if cursor+len(pairs)>len(decisions): break
             frozen={(w,a):engine.actions(w,a) for w,a in pairs}

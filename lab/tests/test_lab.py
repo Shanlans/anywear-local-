@@ -157,3 +157,49 @@ def test_formal_qualification_excludes_demo_and_historical_unknown(tmp_path):
     assert 'historical_unknown_attempt' in report['formal_exclusions']
     assert report['usage']['input_tokens'] is None
     assert report['usage']['missing_input_token_attempts']>0
+
+
+def test_stop_censors_releases_and_replays_without_calls(tmp_path):
+    s=Store(tmp_path/'stop.db');r=s.create({'n_agents':2,'price_cents':3000})
+    s.control(r,'start');drive(s,r)
+    row=s.get(r);e=Engine(row['state']);e.events=[]
+    for w,a in e.ready():
+        e.apply(w,a,{'action':'buy','sku':'S1','reason_code':'suitable','reason_zh':'测试','reason_en':'Test'})
+    s.save(r,e,row['state_hash']);drive(s,r)
+    entered_before={w:m['entered'] for w,m in build_report(s,r)['worlds'].items()}
+    s.control(r,'stop');row=s.get(r)
+    assert row['status']=='STOPPED' and not row['state']['agenda']
+    assert all(a['status']=='CENSORED' for w in row['state']['worlds'].values() for a in w['agents'].values())
+    assert Engine(row['state']).invariants()
+    assert replay(s,r)['matched_saved_state']
+    report=build_report(s,r)
+    assert not report['complete'] and not report['formal_comparison_eligible']
+    assert all(w['left']==0 and w['censored']==2 for w in report['worlds'].values())
+    assert all(m['entered']==entered_before[w] for w,m in report['worlds'].items())
+    assert report['economics']['monthly_increment_cents'] is None
+    with pytest.raises(Conflict,match='RUN_STOPPED_CREATE_NEW'): s.control(r,'resume')
+    seq=row['state']['seq'];s.control(r,'stop');assert s.get(r)['state']['seq']==seq
+
+
+def test_stop_waits_for_inflight_and_survives_unknown_and_restart(tmp_path):
+    s=Store(tmp_path/'stop-inflight.db');r=s.create({'n_agents':1})
+    s.control(r,'start');drive(s,r);row=s.get(r)
+    job=s.prepare_jobs(r,Engine(row['state']),row['fence'])[0]
+    attempt=s.claim(job['id'],row['fence']);s.control(r,'stop')
+    assert s.get(r)['status']=='STOPPING'
+    assert s.claim(s.jobs(r)[1]['id'],row['fence']) is None
+    s.respond(job['id'],attempt,row['fence'],None,{},'TIMEOUT',unknown=True)
+    assert s.get(r)['status']=='STOPPING'
+    s.new_fence();assert s.get(r)['status']=='STOPPING'
+    drive(s,r);assert s.get(r)['status']=='STOPPED'
+    assert s.attempts(r)[0]['status']=='unknown'
+    assert build_report(s,r)['usage']['unknown_attempts']==1
+    with pytest.raises(Conflict): s.control(r,'resubmit_unknown')
+    with pytest.raises(Conflict): s.respond(job['id'],attempt,row['fence'],{}, {})
+
+
+def test_stop_before_arrival_keeps_entered_zero(tmp_path):
+    s=Store(tmp_path/'not-arrived.db');r=s.create({'n_agents':10})
+    s.control(r,'stop')
+    assert all(m['entered']==0 and m['censored']==10 and m['left']==0 for m in build_report(s,r)['worlds'].values())
+    assert replay(s,r)['matched_saved_state']

@@ -63,3 +63,7 @@ TEST-008：用户在外部Chrome启动后首次attempt成功，2.19秒connected�
 REQ-011 / TEST-015 / DEV-008。独立agent复现：空闲试衣间等待估计偏高、failed任务重启fence不匹配、noop agenda推进未增加事件序号导致回放hash不同。另故障注入暴露issues写入占位数错误。已改槽位FCFS等待估计、claim/run双fence及重试更新、每agenda权威WORLD_ADVANCED提交、正确issues写入；分别加入fixture回归。动态噪声分支重复预览保留缓存，单事件frontier禁发模型，批次启动同事务提交。20项pytest通过；修复提交以DEV-008阶段Git识别，真实运行后复核。
 
 BUG-015补充：收银排队增加耐心提醒，可放弃并释放预约；世界事件断点在agenda提交点暂停；分支报告显著探索标记并取消正式经营判定。对应回归通过。
+
+## BUG-016 · P1/P2 · 停止入口隐蔽、终止状态不完整
+
+用户复现：游戏顶部无停止入口，原按钮藏在Debug。旧控制只改run状态，可覆盖COMPLETED，并未截尾、释放预约或阻止继续。修复DEC-015：移到顶部，STOPPING等待当前调用后冻结、CENSORED operator_stop并释放资源、保存事件和快照，拒绝停止已完成或恢复已停止。停止前未进入者保持entered=false（按ARRIVED记忆计数）。保留旧run及导出，不伪造历史。23项pytest覆盖停止/未知/恢复/迟到/库存/回放，浏览器DEMO停止通过；实际模型新版验收待执行。
