@@ -98,3 +98,9 @@ pnpm lab:package --run RUN_ID
 操作者停止时排队记录为censored，已观察等待单列，排除完整等待分位数及主动放弃数。画面监控显示本机FPS，以及最近最多100个已观察到的新状态版本的提交至接收延迟p95；首次历史快照和重复心跳不入样本。该观察采样不是每个事件的完整延迟分布，离开页面时不采样。
 
 Persona uses seven assumed independent shopping axes, not a validated personality model. All six SKUs have the same per-item price. Memories are private to consumer and condition. Operator-stop queue observations are censored and excluded from completed waiting-time percentiles.
+
+## 运行核验工具
+
+`.venv/bin/python scripts/verify_lab_run.py RUN_ID` 对已完成的真实模型场次检查全部自然终止、独立会话、单消费者输入、零工具、模型与Concordia组件、库存/支付/资源、SQLite、checkpoint和零调用回放，导出验证JSON、行为漏斗CSV及报告ZIP/HTML。它拒绝不完整、历史失败/未知、探索分支和未提交源码启动的场次，不调用模型。使用运行报告记录的引擎版本；旧引擎hash不符会拒绝回放。
+
+右侧个人目标区分“运行中／已达成（模拟）／未达成／数据不足”；技术截尾属于数据不足。完整记忆展开后保留滚动位置，避免后台心跳打断阅读。

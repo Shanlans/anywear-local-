@@ -141,15 +141,18 @@ function renderAgent(){
   const a=agentDetail.consumer,o=agentDetail.visible_observation,p=o.persona;
   const reason=a.last_decision?.[language==='zh'?'reason_zh':'reason_en'];
   const memoryOpen=$('all-memory')?.hasAttribute('open');
+  const memoryScroll=document.querySelector<HTMLElement>('#all-memory pre')?.scrollTop||0;
+  const personalGoal=a.suitable?t('personalMet'):a.status==='CENSORED'?t('insufficient_data'):a.ended_at!==null?t('personalNotMet'):t('running');
   $('agent-detail').innerHTML=`<div class="person-heading"><span class="person-avatar">${a.id.slice(1)}</span><div><h3>${a.id}</h3><span class="mini-status">${t(a.status)}</span></div></div>
   <p class="micro">${t('given')}</p><dl class="traits"><dt>${t('personaBudget')}</dt><dd>SGD ${money(p.budget_cents)}</dd><dt>${t('remaining')}</dt><dd>${clock(o.remaining_seconds??Math.max(0,a.deadline-(a.ended_at??displayState?.t??0)))}</dd>
   <dt>${t('stylePreference')}</dt><dd>${p.style_preference.toFixed(2)}</dd><dt>${t('patience')}</dt><dd>${clock(p.patience_seconds)}</dd>
-  <dt>${t('privacy')}</dt><dd>${p.privacy.toFixed(2)}</dd><dt>${t('trust')}</dt><dd>${p.trust.toFixed(2)}</dd><dt>${t('accept')}</dt><dd>${p.accept_threshold.toFixed(2)}</dd><dt>${t('goal')}</dt><dd>${a.suitable?'✓':a.ended_at!==null?'—':t('pending')}</dd></dl><p class="micro">${t('personaHint')}</p>
+  <dt>${t('privacy')}</dt><dd>${p.privacy.toFixed(2)}</dd><dt>${t('trust')}</dt><dd>${p.trust.toFixed(2)}</dd><dt>${t('accept')}</dt><dd>${p.accept_threshold.toFixed(2)}</dd><dt>${t('goal')}</dt><dd>${personalGoal}</dd></dl><p class="micro">${t('personaHint')}</p>
   <h4>${t('decision')}</h4><div class="decision-card"><strong>${a.last_decision?esc(t(a.last_decision.action==='leave'?'leaveAction':a.last_decision.action)+' '+a.last_decision.sku):'—'}</strong><p>${esc(reason||t('waitingModel'))}</p><small>${t('reason')}</small></div>
   <h4>${t('knownProducts')}</h4><div class="known-products">${Object.entries(a.known||{}).map(([sku,raw])=>{const k:any=raw;return `<div><strong>${esc(sku)}</strong><p>${[['fit',k.fit],['appearance',k.appearance],['previewSignal',k.preview]].filter(([,v])=>typeof v==='number').map(([key,v])=>`${t(String(key))}: ${Number(v).toFixed(2)}`).join(' · ')||t('metadataOnly')}</p></div>`;}).join('')||`<p class="micro">${t('noKnownProducts')}</p>`}</div>
   <h4>${t('memory')} <span>${a.memory.length}</span></h4><p class="micro">${t('memoryHint')}</p><div class="memories">${a.memory.slice(-7).reverse().map((m:any)=>`<div><time>${clock(m.time)}</time><span>${esc(t(m.kind))}${m.data.sku?' · '+esc(m.data.sku):''}${m.data[language==='zh'?'reason_zh':'reason_en']?`<small>${esc(m.data[language==='zh'?'reason_zh':'reason_en'])}</small>`:''}</span></div>`).join('')}</div>
   <details id="all-memory" ${memoryOpen?'open':''}><summary>${t('allMemory')} (${a.memory.length})</summary><pre class="memory-json">${esc(JSON.stringify(a.memory,null,2))}</pre></details>
   <details><summary>${t('options')}</summary><select id="manual-choice">${(o.allowed_actions||[]).map((v:any)=>`<option value="${esc(JSON.stringify(v))}">${esc(t(v.action==='leave'?'leaveAction':v.action)+' '+v.sku)}</option>`).join('')}</select><button id="manual" ${(!a.ready||replayMode||snapshot?.status!=='PAUSED')?'disabled':''}>${t('manual')}</button><p class="micro">${t('manualHint')}</p></details>`;
+  const memoryPane=document.querySelector<HTMLElement>('#all-memory pre');if(memoryPane)memoryPane.scrollTop=memoryScroll;
   $('manual').onclick=action(async()=>{const choice=JSON.parse(input('manual-choice').value);const child=await api(`/runs/${runId}/fork`,{expected_hash:snapshot.state.state_hash,world:selected.world,agent:selected.agent,
     decision:{...choice,reason_code:'no_options',reason_zh:'观察者手动干预。',reason_en:'Manual observer intervention.'}});await refreshRuns();await selectRun(child.run_id);});
 }
@@ -216,6 +219,7 @@ setInterval(()=>{refreshHealth().catch(()=>{});refreshRuns().catch(()=>{});},500
 setInterval(()=>{const sorted=[...updateLags].sort((a,b)=>a-b),p95=sorted.length?sorted[Math.ceil(sorted.length*.95)-1]:null;
   $('render-performance').textContent=`${t('renderFps')}: ${Math.round(game.loop.actualFps)} fps · ${t('updateLag')}: ${p95??'—'} ms (n=${sorted.length})`;
   $('render-performance').dataset.fps=String(game.loop.actualFps);$('render-performance').dataset.updateP95=String(p95??'');
+  $('render-performance').dataset.renderedConsumers=String(scene.people.size);
 },1000);
 // Read-only instrumentation for acceptance; contains no auth or prompts.
 (window as any).__anywearLab={get fps(){return game.loop.actualFps;},get run(){return runId;},get lastRefresh(){return lastRefresh;},get replay(){return replayMode;}};

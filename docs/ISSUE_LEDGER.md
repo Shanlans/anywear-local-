@@ -73,3 +73,7 @@ BUG-015补充：收银排队增加耐心提醒，可放弃并释放预约；世�
 独立agent只读复现：drive已读RUNNING，随后STOPPING且响应回到，旧save可将断点结果提交为PAUSED，误落地LEFT。修复：worker所有提交必须在事务内匹配预期RUNNING/PAUSING，STOPPING只能finalize_stop收尾。回归确定复现旧竞态，现抛CONTROL_STATE_CHANGED，无决策落地、最终CENSORED；停止过程中未知恢复保持停止意图。停止时排队原为abandoned，改QUEUE_CENSORED/outcome=censored，单列观察等待，不纳入主动放弃数/完整p50/p95。25项pytest通过。
 
 BUG-017追加复审：版本不符告警也限定只修改仍RUNNING的实验，不能覆盖并发停止的STOPPED。新增无模型竞态回归，26项pytest通过。
+
+## BUG-018 · P1 · M4上游流连接中断 · 外部故障，原场保留暂停
+
+DEV-011 / TEST-018。run-a0ee66a357ae第214/215次尝试上游HTTP200后流连接中断，CLI_FAILED，结果未知、usage缺失；根因未确认，不把未知金额记为0。系统自动暂停，未将未完成人员改成离店，回放hash一致。没有自动重提交或修写历史；该场排除正式比较。保留checkpoint和本机中断报告，在原2000次总预算剩余1785次内创建同参数新根实验，完成情况待M4实测。前端补双语未知提示；不宣称已修复供应商连接。
