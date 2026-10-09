@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import {createDiagnosticWriter} from './diagnostics.mjs';
 import {localProducts} from './src/local-catalog.js';
 import { createDecartClient } from '@decartai/sdk';
+import {proxyLab} from './lab-proxy.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({path:path.join(root,'.env'),quiet:true});
 const logDiagnostic=createDiagnosticWriter(root);
@@ -21,6 +22,8 @@ const json=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application
 const server=http.createServer(async(req,res)=>{
   const host=req.headers.host;
   if(![`localhost:${port}`,`127.0.0.1:${port}`].includes(host)){return json(res,403,{error:'仅允许本机访问'});}
+  if(req.url?.startsWith('/api/lab/'))return proxyLab(req,res);
+  if(req.url==='/lab'){res.writeHead(302,{Location:'/lab/'});return res.end();}
   if(req.url==='/api/diagnostics' && req.method==='POST'){
     const origin=req.headers.origin;
     if(req.headers['x-anywear-request']!=='1'||origin&&!['http://localhost:'+port,'http://127.0.0.1:'+port].includes(origin))return json(res,403,{error:'不允许此来源'});
@@ -65,9 +68,9 @@ const server=http.createServer(async(req,res)=>{
   if(req.method!=='GET' && req.method!=='HEAD')return json(res,405,{error:'方法不允许'});
   let pathname;
   try{pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}catch{return json(res,400,{error:'无效路径'});}
-  const file=path.resolve(webRoot,'.'+(pathname==='/'?'/index.html':pathname));
+  const file=path.resolve(webRoot,'.'+(pathname==='/'?'/index.html':pathname==='/lab/'?'/lab/index.html':pathname));
   if(!file.startsWith(webRoot+path.sep))return json(res,403,{error:'访问被拒绝'});
   try{const stat=fs.statSync(file);if(!stat.isFile())throw Error();res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);}catch{return json(res,404,{error:'文件不存在'});}
 });
 server.listen(port,'127.0.0.1',()=>console.log(`Anywear 本地试衣已启动：http://localhost:${port}`));
-for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{server.close(()=>process.exit(0));});
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{server.close(()=>process.exit(0));server.closeAllConnections?.();});

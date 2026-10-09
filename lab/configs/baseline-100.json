@@ -1,0 +1,10 @@
+{
+  "name": "baseline-100",
+  "mode": "codex",
+  "n_agents": 100,
+  "attempt_budget": 2000,
+  "seed": 20261009,
+  "price_cents": 12000,
+  "initial_fitting_delay": 0,
+  "model": "gpt-6.1-sol"
+}

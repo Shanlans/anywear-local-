@@ -3,6 +3,15 @@
 !.env.example
 node_modules/
 dist/
+.venv/
+__pycache__/
+.pytest_cache/
+.lab-data/
+lab-data/
+playwright-report/
+test-results/
+*.sqlite*
+*.db
 *.log
 src/local-products/
 .local/

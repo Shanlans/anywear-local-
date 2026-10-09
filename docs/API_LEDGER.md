@@ -120,3 +120,7 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 ## 配件能力复核 · 2026-10-08 · REQ-010 / DEC-013
 
 [官方Lucy VTON提示词指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)明确参考图可用于garments和accessories，建议附加配件使用Add动作并说明佩戴位置与可见细节，示例包含帽、包、项链。本次查阅未找到眼镜专属支持保证、精准贴合承诺或多图配件融合接口。新增太阳镜仍走官方实时VTON单image+prompt，不是图片叠加；一般配件支持已查证，本图眼镜视觉效果待TEST-013验证。默认Prompt保留原有衣服是请求而非质量保证，切换单图后此前生成服装也不保证保留。
+
+## 2026-10-09 · 消费者实验室适配器 · REQ-011 / DEC-014
+
+官方参考：Concordia https://github.com/google-deepmind/concordia / PyPI gdm-concordia2.4.0，Phaser https://docs.phaser.io/phaser/getting-started/what-is-phaser，Codex CLI https://learn.chatgpt.com/docs/cli/reference 及 https://learn.chatgpt.com/docs/config-file/config-reference 。已安装并固定Concordia2.4.0、Phaser3.90；Python完整锁见lab/requirements.lock。CLI配置ephemeral、禁工具、忽略用户配置；实际安全边界是随机nonce固定上游网关重写为单输入/零工具。真实探针通过，温度/top_p/top_k/硬token上限/模型seed不支持；账号额度消耗、金额未知。请求/记忆/事件与API详见lab/README.md，不记录认证头、reasoning内容或原始流。
