@@ -5,3 +5,4 @@ node_modules/
 dist/
 *.log
 src/local-products/
+.local/
