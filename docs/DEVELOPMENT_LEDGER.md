@@ -151,3 +151,7 @@ DEV-007验证：构建与15回归通过；中英配件筛选、眼镜图片/大�
 ## REL-003 · 本机重新部署 · 2026-10-08 19:52 · Asia/Singapore · 通过（可访问性）
 
 用户请求重新部署。当前代码基线本机433faa4 / GitHub756283c，功能分支feature/live-fitting-demo，PR #1。重新构建前Git工作区干净；检查3000端口未发现监听，原进程退出原因未知，未将其推断成API/摄像头故障。生产构建通过，重新启动server.mjs。验证localhost网页HTTP200、status.configured=true、lucy-vton-latest、本机六商品七图片全部HTTP200且非空。没有签发令牌、开启摄像头或收费连接；没有代码功能变化，既有15项回归结果仍对应相同源码，文字更新不重复测试。此记录只证明部署时可访问，未增加真人效果验收证据。README同步本机恢复状态，CHANGELOG记录；如需回退，代码基线433faa4，摄影/密钥保留本机且不入Git。
+
+## REL-004 · 本机重新上线 · 2026-10-10 11:21 · Asia/Singapore · 通过（可访问性）
+
+用户请求重新上线。源码基线本机cb5931f / GitHub6affbf9，功能分支feature/live-fitting-demo，PR #1。启动前3000端口未监听，前服务退出原因未知。生产构建通过；采用detached后台进程并unref，启动输出及PID写入Git忽略的.local/server.log与.local/server.pid，减少启动终端生命周期对服务的影响。本次未安装系统自启或定时任务，不保证重启Mac后自动恢复。验证网页、前端构建资源、六商品七张本机图全部HTTP200且非空，configured=true、lucy-vton-latest。未开启摄像头、签发令牌或收费连接，无功能源码变更；不重复同源码已通过的15项测试。README/CHANGELOG同步此次上线，真实效果与连续操作关卡仍待现场验证；代码回退基线cb5931f，密钥及摄影不入Git。
