@@ -2,7 +2,7 @@
 
 本 Demo 通过 Decart Lucy VTON 把实时摄像头流与单件商品参考图组合成远端生成视频。当前实现使用官方 JavaScript SDK 和短期令牌，永久密钥只保存在本机后端。接口签发已通过，真实人物试穿效果仍待本机摄像头验收。
 
-最近更新：2026-10-08，Asia/Singapore。价格以美元计，本台账不是账户余额或账单。所有永久密钥和短期令牌均不记入本文。
+最近更新：2026-10-13，Asia/Singapore。价格以美元计，本台账不是账户余额或账单。所有永久密钥和短期令牌均不记入本文。
 
 ## API 接入记录
 
@@ -13,7 +13,7 @@
 | 已配置 | 用户提供的密钥已写入本机 .env，权限 600；值不入仓库 | 本机配置检查 |
 | SDK | @decartai/sdk 0.2.7，锁定版本 | package.json 与 pnpm-lock.yaml |
 | 默认模型 | lucy-vton-latest | 后端 .env 配置 |
-| 当前别名 | 官方模型页列为 lucy-vton-3.5；3.6 虽已可用，但不要把 latest 自动描述成 3.6 | [模型页](https://docs.platform.decart.ai/getting-started/models) |
+| 当前别名 | 2026-10-13官方映射为 lucy-vton-3.6；运行配置仍为latest，未固定版本；历史底层版本不能反推 | [模型页](https://docs.platform.decart.ai/getting-started/models) |
 | 通信 | 浏览器官方 SDK 建立 WebRTC / LiveKit 连接，直接上传实时视频 | [官方 SDK 示例](https://github.com/DecartAI/sdk) |
 | 本地入口 | http://localhost:3000，仅绑定 127.0.0.1 | server.mjs |
 | 后端作用 | 签发短期令牌和提供静态前端，不代理或存储摄像头视频 | server.mjs |
@@ -65,8 +65,7 @@ Decart 官方使用按量计费；实时接口按活跃生成秒数计费，视�
 | 模型或模式 | 720p 官方价格 | 用途 | Demo 选择 |
 | --- | --- | --- | --- |
 | VTON 3.5 / 3.6 实时标准 | $0.02 / 生成秒 | 实时试衣 | 默认标准 |
-| VTON 3.5 / latest fast | $0.04 / 生成秒 | 更低延迟档位 | 关闭 |
-| VTON 3.6 fast | 不支持 | 无该档位 | 不使用 |
+| VTON 3.5 / 3.6 / latest fast | $0.04 / 生成秒 | 2026-10-13官方已列3.6支持 | 关闭 |
 | VTON 3.5 / 3.6 批处理 | $0.04 / 生成秒 | 已录制视频换装 | 未接入 |
 | Lucy 2.5 实时 | $0.02 / 生成秒 | 通用实时视频编辑 | 未接入 |
 | Lucy Restyle 2 实时 | $0.01 / 生成秒 | 风格化 | 未接入 |
@@ -109,7 +108,7 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 
 前版安装0.2.3未实现apiKeyProvider，令牌签发通过不能证明SDK能构造实时客户端。BUG-006已定位并升级官方npm0.2.7，新增provider拨号前调用回归。上游官方npm latest核对0.2.7；旧版本事实保留在Git/问题记录。实时使用connect/set，绝不使用Batch替代。
 
-官方价格重新核查：标准VTON3.5/3.6均$0.02/活跃生成秒；3.5快速$0.04，3.6无快速。来源https://docs.platform.decart.ai/getting-started/pricing 。当前latest底层具体版本以供应商为准，记录为未知；没有启用快速模式。
+本节为10月8日历史核查，现行别名及快速模式以10月13日顶部表为准；旧判断已被替代。历史会话底层版本仍未知，未启用快速模式。
 
 后端令牌200已验证。用户报告开始等待约25秒后断开，BUG-007待脱敏日志确认，无真实AI画面验证成功。本机日志字段白名单排除认证/Prompt/媒体/原始URL。
 
@@ -140,3 +139,9 @@ isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp
 ## policy枚举语义纠正 · 2026-10-13 · BUG-017
 
 安装SDK0.2.7的terminalReasonFromClose/terminalReasonFromError将WebSocket1008归policy_violation，不能等同于明确内容审核moderation_violation。旧Demo合并翻译与记录有误，现拆分诊断码及显示：通用关闭保留前置可信API提示，具体审核单独说明。15:09真实会话有先行credit类错误，无AI首帧，旧聚合码无法还原原始枚举；准确账户状态需用户查平台，不能据此要求换图或断言余额归零。没有发现也没有调用余额查询接口，没有自动重试收费生成。
+
+## 模型与credits复核 · 2026-10-13 · DEV-012 / TEST-022
+
+本机GET /api/status返回lucy-vton-latest；官方模型表和VTON页今日均明确解析为lucy-vton-3.6。这是文档映射，不是历次会话服务端版本回报。没有改模型或开启fast。平台Billing通用套餐10,000 credits / $100，对应100 credits / $1、1,000 credits / $10；标准VTON约2 credits/生成秒，30秒约60 credits/$0.60。来源：[模型表](https://docs.platform.decart.ai/getting-started/models)、[价格](https://docs.platform.decart.ai/getting-started/pricing)、[登录后Billing套餐](https://platform.decart.ai/billing)。个人余额/消费/账单截图不入仓库。用户已自行核对账户，恢复服务可用性后再复测。
+
+再次检查[完整公开文档索引](https://docs.platform.decart.ai/llms.txt)，没有公开的账户余额、费用流水或账单查询接口；只能说未找到公开支持，不能断言平台内部不存在。GET /v1/realtime/quota只返回并发limit/active/remaining，不能转成钱。SDK generationTick/generationEnded提供时长，不提供最终扣款；Demo继续估算，正式金额通过平台Usage/Billing核对。
