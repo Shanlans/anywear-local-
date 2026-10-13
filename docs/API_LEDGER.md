@@ -22,7 +22,7 @@
 
 ## 使用流程与接口
 
-后端用环境变量 DECART_API_KEY 创建官方 client。浏览器先免费预览摄像头；用户点击开始后，由 apiKeyProvider 向本地 POST /api/token 获取凭据；每次重新拨号也会获取新令牌。随后调用 realtime.connect，并用 onRemoteStream 接收 AI 输出。初始参考图和提示词放在 initialState；之后用 set({image, prompt, enhance}) 替换单品，无需主动重建会话。[实时接入说明](https://docs.platform.decart.ai/models/realtime/virtual-try-on)
+后端用环境变量 DECART_API_KEY 创建官方 client。浏览器先免费预览摄像头；用户点击开始后，由 apiKeyProvider 向本地 POST /api/token 获取凭据；每次重新拨号也会获取新令牌。随后调用 realtime.connect，并用 onRemoteStream 接收 AI 输出。首次及后续参考图都在连接后显式 await set({image, prompt, enhance})，等待回执再更新已发送；不再把connect返回当初始参考图确认，无需主动重建会话。[实时接入说明](https://docs.platform.decart.ai/models/realtime/virtual-try-on)
 
 | 本地接口 | 方法 | 用途 | 返回信息 |
 | --- | --- | --- | --- |
@@ -98,7 +98,7 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 
 ## 2026-10-08 输入方式与背面核查
 
-官方实时 VTON 文档列出单个 `image`（JPEG/PNG/WebP），没有图片数组或 front_image/back_image 多视角参数。允许文字、参考图或两者组合，故 Prompt 并非 API 必填；本 Demo 为可控试验要求编辑框非空，并总是发送当前单图+Prompt，enhance=false。初始连接用 initialState，已连接用 set；set 整体替换状态，不能把先发正面、再发背面视作积累两张图。来源：[实时 VTON](https://docs.platform.decart.ai/models/realtime/virtual-try-on)。
+官方实时 VTON 文档列出单个 `image`（JPEG/PNG/WebP），没有图片数组或 front_image/back_image 多视角参数。允许文字、参考图或两者组合，故 Prompt 并非 API 必填；本 Demo 为可控试验要求编辑框非空，并总是发送当前单图+Prompt，enhance=false。旧版初始连接用initialState，现由DEC-020替代为连接后显式await set；SDK仍支持initialState，但连接完成不代表它已确认；set 整体替换状态，不能把先发正面、再发背面视作积累两张图。来源：[实时 VTON](https://docs.platform.decart.ai/models/realtime/virtual-try-on)。
 
 公开请求无 gender 参数或性别识别结果；品类通过提示词指定目标区域。outfit 可以描述整套服饰，但不代表复制模特身份，也不保证先前单品保留。含模特参考建议先提取服装，当前未实现该步骤。来源：[提示词指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)。
 
@@ -153,3 +153,9 @@ isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp
 ## 默认自动录像 · 2026-10-13 · REQ-014 / DEC-019
 
 用户授权AI输出就绪后自动开启本机原画＋AI录制，无新增Decart调用或费用入口。免费预览不录；同次会话只自动尝试一次，停止/重连不重复启动。手动停止录像不停止试衣；30秒试衣截止会收尾录像。视频仍由用户点击下载落盘，永久密钥/摄影/录制内容不入日志和Git。合成源的30秒测试不是远端模型效果证据。
+
+## 参考图回执、内层错误与黑屏 · 2026-10-13 · DEV-016 / DEC-020
+
+已安装SDK0.2.7的StreamSession.runOneConnect启动watchInitialStateAck后继续媒体连接，不等待初始参考图回执；watchInitialStateAck可能稍后发error。classifyWebrtcError将未知错误包装为WEBRTC_SIGNALING_ERROR/Signaling error，并把原Error放cause。原Demo只读外层且connect即标记发送，存在信息丢失和确认时序错误。现在按[官方JS示例](https://docs.platform.decart.ai/models/realtime/virtual-try-on)先connect、再显式await set完整单图+Prompt，发送失败不改已发送，不重开连接。
+
+错误cause最多读取4层，防循环；仅保留固定分类和词表，长度240内，不保存原文/像素/URL/Prompt/金额。未知/信令错误不再推断为摄像头故障。远端解码首帧与可见非全黑帧分开记录；32×18本机像素只算黑屏分类，立即丢弃，日志只有状态，不上传或存图。可见内容与请求回执是自动录像门槛，但两者都不证明服装效果。当前远端黑屏根因尚未通过新真实请求定位，不能把检测功能说成修复了模型。
