@@ -9,3 +9,6 @@
 .fitting.expanded .stage{height:auto;flex:1;min-height:120px}
 body.fitting-expanded{overflow:hidden}
 @media(max-width:700px){.fitting.expanded{padding:10px}.view-buttons{flex-wrap:wrap}}
+
+.record-controls{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;flex-shrink:0;font-size:11px;color:#71855f}
+.record-controls .secondary{padding:7px 10px;font-size:12px}.record-controls .recording{color:#9d4f3a;border-color:#ba8067;background:#f5e5dc}.record-controls a{font-size:11px;white-space:nowrap}#recordState{max-width:390px;line-height:1.5}

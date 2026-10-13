@@ -6,3 +6,8 @@ dist/
 *.log
 src/local-products/
 .local/
+
+# Keep local camera and try-on recordings out of version control.
+*.mp4
+*.webm
+*.mov

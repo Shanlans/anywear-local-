@@ -120,3 +120,9 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 ## 配件能力复核 · 2026-10-08 · REQ-010 / DEC-013
 
 [官方Lucy VTON提示词指南](https://docs.platform.decart.ai/models/realtime/vton-3.5-prompting)明确参考图可用于garments和accessories，建议附加配件使用Add动作并说明佩戴位置与可见细节，示例包含帽、包、项链。本次查阅未找到眼镜专属支持保证、精准贴合承诺或多图配件融合接口。新增太阳镜仍走官方实时VTON单image+prompt，不是图片叠加；一般配件支持已查证，本图眼镜视觉效果待TEST-013验证。默认Prompt保留原有衣服是请求而非质量保证，切换单图后此前生成服装也不保证保留。
+
+## 本机录像能力 · 2026-10-13 · REQ-011 / DEC-014
+
+新增对比录像使用[浏览器MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)与[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)，不是Decart新增API。只合成本页现有原画与远端流，编码与下载在浏览器，不上传后端、不另开生成连接。试衣会话仍按已有规则运行，停止录像不停止生成；录像模块不参与费用计算。
+
+isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp8/video/webm；最终扩展名从实际recorder.mimeType决定。停止后等待最终dataavailable和stop事件，再生成下载Blob。浏览器或硬件失败显示可操作错误，不报告已保存。此次内置浏览器测试实际得到video/mp4;codecs=avc1，下载文件ftyp/isom有效；不把该结果当所有浏览器兼容保证，Chrome真人录制仍需用户验收。

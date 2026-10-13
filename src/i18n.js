@@ -1,5 +1,19 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'开始对比录像':'Record comparison','停止录像':'Stop recording','正在生成录像…':'Finalizing recording…',
+'下载对比录像':'Download comparison','AI画面出现后可录像，无声音。':'Record once AI video appears. No audio.',
+'原画＋AI左右对比 · 无声音':'Original + AI side by side · No audio',
+'当前浏览器不支持录像，请用Chrome重试。':'Recording unsupported. Try Chrome.',
+'正在生成可下载视频…':'Preparing a downloadable video…',
+'录像已就绪，请下载保存到本机。':'Recording ready. Download to save on this Mac.',
+'试衣已结束，录像已就绪。请下载保存。':'Try-on ended. Recording ready to download.',
+'画面中断，录像已收尾。请下载并检查。':'Video interrupted. Recording finalized; download and check it.',
+'页面切到后台，录像已收尾；试衣会话仍在运行。':'Page hidden. Recording finalized; try-on session still running.',
+'录像达到5分钟，已收尾；试衣会话可能仍在运行。':'Recording reached 5 minutes; try-on may still be running.',
+'录像达到内存上限，已收尾；试衣会话仍在运行。':'Recording reached its memory limit; try-on still running.',
+'录像未能生成，请重试；试衣会话未因此停止。':'Recording failed. Retry; this did not stop your try-on session.',
+'无法开始录像，请等待AI画面或换用Chrome重试。':'Cannot record yet. Wait for AI video or try Chrome.',
+
 '配件':'Accessories','配件（实验性）':'Accessories (experimental)',
 '黑框绿片太阳镜':'Black-frame green-lens sunglasses',
 '黑色厚框 · 绿色镜片 · 配件实验':'Thick black frame · Green lenses · Experimental accessory',
@@ -214,6 +228,7 @@ let locale=localStorage.getItem('anywear-language')||'zh-CN';if(!locales[locale]
 const memory=new WeakMap();
 function translate(s){if(locale==='zh-CN')return s;const trim=s.trim();const dictionary=locales[locale].dictionary;const direct=dictionary[trim];if(direct)return s.replace(trim,direct);
  const substitutions=[
+ [/^录像中 · (.+)$/,(_,time)=>`Recording · ${time}`],
  [/^输入 (.+)$/,(_,size)=>`Input ${size}`],
  [/^摄像头 (\d+)$/,(_,n)=>`Camera ${n}`],
  [/^排队中 · (\d+)$/,(_,n)=>`Queued · ${n}`],
