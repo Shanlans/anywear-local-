@@ -5,10 +5,10 @@ import {once} from 'node:events';
 import http from 'node:http';
 const port=3067,base=`http://127.0.0.1:${port}`;
 test('local server protects credentials and token issuance',async()=>{
- const child=spawn(process.execPath,['server.mjs'],{env:{...process.env,PORT:String(port),DECART_API_KEY:''},stdio:['ignore','pipe','pipe']});
+ const child=spawn(process.execPath,['server.mjs'],{env:{...process.env,PORT:String(port),DECART_API_KEY:'',MAX_SESSION_SECONDS:'300'},stdio:['ignore','pipe','pipe']});
  try{
   await Promise.race([once(child.stdout,'data'),once(child,'exit').then(()=>{throw Error('Server exited before listening')}),new Promise((_,reject)=>{const timer=setTimeout(()=>reject(Error('Startup timeout')),10000);timer.unref();})]);
-  let r=await fetch(base+'/api/status');let status=await r.json();assert.equal(status.configured,false);assert.equal(Object.hasOwn(status,'apiKey'),false);
+  let r=await fetch(base+'/api/status');let status=await r.json();assert.equal(status.configured,false);assert.equal(Object.hasOwn(status,'apiKey'),false);assert.equal(status.maxSessionSeconds,30);
   r=await fetch(base+'/api/local-products');assert.equal(r.status,200);const catalog=await r.json();assert.ok(Array.isArray(catalog.products));
   for(const p of catalog.products){for(const view of p.views){const photo=await fetch(base+view.image);if(!view.available){assert.equal(photo.status,404);continue;}assert.equal(photo.status,200);assert.match(photo.headers.get('content-type'),/^image\//);assert.ok((await photo.arrayBuffer()).byteLength>0);}}
   r=await fetch(base+'/local-products/%2e%2e%2f.env');assert.equal(r.status,404);
@@ -21,5 +21,5 @@ test('local server protects credentials and token issuance',async()=>{
   r=await fetch(base+'/api/token',{method:'POST',headers:{'X-Anywear-Request':'1',Origin:'https://evil.example'}});assert.equal(r.status,403);
   r=await fetch(base+'/api/token',{method:'POST',headers:{'X-Anywear-Request':'1'}});assert.equal(r.status,503);
   r=await fetch(base);assert.equal(r.status,200);assert.match(await r.text(),/Anywear/);
- }finally{child.kill('SIGTERM');await once(child,'exit');}
+ }finally{if(child.exitCode===null&&child.signalCode===null){const exited=once(child,'exit');child.kill('SIGTERM');await exited;}}
 });

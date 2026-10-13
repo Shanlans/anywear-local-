@@ -77,3 +77,7 @@ TEST-018三项新增回归/总24项通过，浏览器模拟SDK顺序genericStops
 已核对安装SDK0.2.7：terminalReasonFromClose把通用WebSocket1008映射policy_violation；只有明确moderation_violation才是内容审核终止。旧日志因聚合同码，无法事后还原本次原始枚举；credit是固定分类，也不能区分具体余额/并发数字。不得用这些记录断言詹姆斯照片违规或今天余额为0。
 
 修复DEV-011/DEC-017：通用policy显示未知服务端规则，若此前有可信的额度/认证/来源/模型提示则保留；明确moderation仍单独显示内容审核。诊断码拆分SESSION_END_POLICY_GENERIC/SESSION_END_MODERATION；新增固定额度相关词，不存数字/账户身份/原始消息。新增三项回归，总27检查通过。当前可用额度等待用户在平台确认，不自动重试收费连接。修复版本本阶段Git提交，关联TEST-020/021。
+
+## BUG-018 · 测试子进程先退出导致清理等待遗漏 · 2026-10-13 · 通过
+
+严重性P2，仅测试工具。受限环境不能监听测试端口，子进程在finally前已退出；旧finally再次等待exit事件而挂起。先判断exitCode/signalCode，仅仍存活时注册退出监听并停止，修复版本DEV-013；允许本机端口环境31项回归通过。实际生产服务未受此测试工具问题影响。

@@ -242,6 +242,10 @@ let locale=localStorage.getItem('anywear-language')||'zh-CN';if(!locales[locale]
 const memory=new WeakMap();
 function translate(s){if(locale==='zh-CN')return s;const trim=s.trim();const dictionary=locales[locale].dictionary;const direct=dictionary[trim];if(direct)return s.replace(trim,direct);
  const substitutions=[
+ [/^(\d+) 秒未收到 AI 首帧，已停止，请检查网络后重试。$/,(_,n)=>`No AI frame arrived within ${n} seconds. Stopped; check your connection and try again.`],
+ [/^每次最多 (\d+) 秒 · 自动结束$/,(_,n)=>`Up to ${n}s per session · Auto-stop`],
+ [/^剩余 (\d+) 秒 · 自动结束$/,(_,n)=>`${n}s remaining · Auto-stop`],
+ [/^本次试衣将在 (\d+) 秒后自动结束。$/,(_,n)=>`Try-on will stop automatically in ${n} seconds.`],
  [/^录像中 · (.+)$/,(_,time)=>`Recording · ${time}`],
  [/^输入 (.+)$/,(_,size)=>`Input ${size}`],
  [/^摄像头 (\d+)$/,(_,n)=>`Camera ${n}`],

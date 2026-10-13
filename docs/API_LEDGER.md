@@ -35,7 +35,7 @@ token 请求必须包含 X-Anywear-Request: 1。后端拒绝其他 Host 与跨�
 
 官方令牌默认有效 60 秒，可配置 1 至 3600 秒；allowedModels 与 allowedOrigins 可限制模型和浏览器来源。expiresIn 限制开启连接的时间，maxSessionDuration 限制已经开启的会话。仅令牌到期不会终止已运行的视频生成。[Client Tokens](https://docs.platform.decart.ai/getting-started/client-tokens)
 
-本 Demo 设定：60 秒 TTL、仅默认 VTON 模型、仅本机两个来源、最多 300 秒会话。后端把时长限制写入令牌，前端也设置停止计时器。页面刷新和结束按钮释放摄像头并断开会话。同浏览器同来源使用Web Locks限制一个活动试衣实例；没有跨浏览器总消费额度限制。
+本 Demo 设定：60 秒 TTL、仅默认 VTON 模型、仅本机两个来源、最多 30 秒会话。后端把时长限制写入令牌，前端从点击开始即设置30秒停止计时器，包含连接等待；换衣/重连不重置。页面刷新和结束按钮释放摄像头并断开会话。同浏览器同来源使用Web Locks限制一个活动试衣实例；没有跨浏览器总消费额度限制。
 
 ## VTON 功能台账
 
@@ -145,3 +145,7 @@ isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp
 本机GET /api/status返回lucy-vton-latest；官方模型表和VTON页今日均明确解析为lucy-vton-3.6。这是文档映射，不是历次会话服务端版本回报。没有改模型或开启fast。平台Billing通用套餐10,000 credits / $100，对应100 credits / $1、1,000 credits / $10；标准VTON约2 credits/生成秒，30秒约60 credits/$0.60。来源：[模型表](https://docs.platform.decart.ai/getting-started/models)、[价格](https://docs.platform.decart.ai/getting-started/pricing)、[登录后Billing套餐](https://platform.decart.ai/billing)。个人余额/消费/账单截图不入仓库。用户已自行核对账户，恢复服务可用性后再复测。
 
 再次检查[完整公开文档索引](https://docs.platform.decart.ai/llms.txt)，没有公开的账户余额、费用流水或账单查询接口；只能说未找到公开支持，不能断言平台内部不存在。GET /v1/realtime/quota只返回并发limit/active/remaining，不能转成钱。SDK generationTick/generationEnded提供时长，不提供最终扣款；Demo继续估算，正式金额通过平台Usage/Billing核对。
+
+## 30秒限制与凭据更新 · 2026-10-13 · DEV-013
+
+用户授权替换本机后端密钥，仅更新Git忽略的.env且权限600；不记录密钥、前缀、指纹或账户身份。服务重启后签发HTTP200，短期令牌载荷中maxSessionDuration=30已确认，未启动生成。令牌TTL仍60秒，它不代表允许生成60秒。[官方约束说明](https://docs.platform.decart.ai/getting-started/client-tokens)中maxSessionDuration为每个WebSocket会话限制；前端独立总截止时间包含连接和重连，不能因重新签发续时。浏览器后台计时或网络清理有延迟可能，供应商结算待核对，不宣称精确费用封顶。新key不证明余额/生成权限；API费用查询仍未公开支持。
