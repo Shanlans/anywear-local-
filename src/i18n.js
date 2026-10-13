@@ -4,6 +4,9 @@ const en={
 'Decart 返回明确的内容审核终止，请检查参考图、提示词与平台使用规则。':'Decart explicitly ended the session through content moderation. Review the reference, prompt and platform usage rules.',
 
 '詹姆斯 湖人23号球衣':'James Lakers No. 23 jersey',
+'黑色猴脸印花 T 恤':'Black monkey-face graphic tee',
+'黑色圆领短袖 · 大幅猴脸印花':'Black crew-neck tee · Large monkey-face print',
+'猴脸仅为衣服上的印花，保留本人脸部和身体；图案保真需实测。':'The monkey face is a T-shirt print. Preserve the person’s face and body; print fidelity needs testing.',
 '黄色无袖 · 紫白滚边 · 23号':'Yellow sleeveless · Purple/white trim · No. 23',
 '球衣参考含人物；只转移上衣，号码、文字与人物保持需实测。':'The jersey reference includes a person. Transfer only the top; lettering, number and identity preservation need live testing.',
 

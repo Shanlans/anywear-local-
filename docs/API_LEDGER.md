@@ -42,7 +42,7 @@ token 请求必须包含 X-Anywear-Request: 1。后端拒绝其他 Host 与跨�
 | 能力 | 官方支持 | 本 Demo 状态 | 验证条件与限制 |
 | --- | --- | --- | --- |
 | 实时虚拟试衣 | 支持 | 官方 SDK 接入完成 | Chrome已出现真实远端首帧，服装效果待验收 |
-| 上衣 | 官方指南列出 | 三件真实上衣、四张原图，可上传 | 正面、上半身清晰入镜 |
+| 上衣 | 官方指南列出 | 四件真实上衣、五张原图，可上传 | 正面、上半身清晰入镜 |
 | 裤子与下装 | 官方指南列出 | 两件真实下装、两张原图，可上传 | 腰部与腿部完整入镜 |
 | 鞋子 | 官方指南明确列出 footwear | 一张本机原图，实验性标记 | 双脚完整入镜；本机效果尚未验证 |
 | 配件 | 官方指南概述及帽子/包/项链示例支持 | 新增配件分类、上传与黑框绿片太阳镜原图 | 本眼镜贴合/转头稳定性未验收，实验性；不新增专用API |
@@ -159,3 +159,7 @@ isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp
 已安装SDK0.2.7的StreamSession.runOneConnect启动watchInitialStateAck后继续媒体连接，不等待初始参考图回执；watchInitialStateAck可能稍后发error。classifyWebrtcError将未知错误包装为WEBRTC_SIGNALING_ERROR/Signaling error，并把原Error放cause。原Demo只读外层且connect即标记发送，存在信息丢失和确认时序错误。现在按[官方JS示例](https://docs.platform.decart.ai/models/realtime/virtual-try-on)先connect、再显式await set完整单图+Prompt，发送失败不改已发送，不重开连接。
 
 错误cause最多读取4层，防循环；仅保留固定分类和词表，长度240内，不保存原文/像素/URL/Prompt/金额。未知/信令错误不再推断为摄像头故障。远端解码首帧与可见非全黑帧分开记录；32×18本机像素只算黑屏分类，立即丢弃，日志只有状态，不上传或存图。可见内容与请求回执是自动录像门槛，但两者都不证明服装效果。当前远端黑屏根因尚未通过新真实请求定位，不能把检测功能说成修复了模型。
+
+## 猴脸T恤参考 · 2026-10-13 · REQ-015 / DEV-017
+
+monkey.jpg为700×700 JPEG，保持原始摄影，本机JPEG响应与浏览器解码通过。参考依旧单image+Prompt；明确只换印有猴脸的T恤，不请求换人脸。新增商品不代表API支持动物变身或图片处理成功，也不证明此前黑屏已解决；需新显式set回执和用户视觉验证。
