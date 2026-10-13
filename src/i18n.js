@@ -1,5 +1,9 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'詹姆斯 湖人23号球衣':'James Lakers No. 23 jersey',
+'黄色无袖 · 紫白滚边 · 23号':'Yellow sleeveless · Purple/white trim · No. 23',
+'球衣参考含人物；只转移上衣，号码、文字与人物保持需实测。':'The jersey reference includes a person. Transfer only the top; lettering, number and identity preservation need live testing.',
+
 'Decart 返回额度不足，已结束会话；请在平台检查额度后再开始。':'Decart ended the session for insufficient credits. Check your platform credits before starting again.',
 'Decart 返回并发会话上限，已结束；请先结束其他试衣会话后再开始。':'Decart ended the session at the concurrency limit. End other sessions before starting again.',
 'Decart 因内容策略结束会话，请更换参考图或提示词后重试。':'Decart ended the session under its content policy. Change the reference or prompt and retry.',

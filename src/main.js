@@ -53,7 +53,7 @@ function renderProducts(){
  setText('productCount',String(products.length));
  if(!selected)return;setText('selectedName',selected.name);$('promptEditor').disabled=false;$('enlarge').disabled=false;
  $('referenceViews').replaceChildren(...selected.views.map((v,i)=>{const b=document.createElement('button');b.textContent=v.label;b.className='secondary';b.setAttribute('aria-pressed',String(i===viewIndex));b.onclick=()=>{viewIndex=i;renderProducts();showDraft();};return b;}));$('referenceViews').hidden=selected.views.length<2;
- setText('referenceNote',selected.views.length>1?'正反面分别应用单张图；背面不保证准确。':selected.category==='shoes'?'鞋类实验：需要双脚完整入镜。':selected.category==='accessories'?'配件实验：眼镜请让脸部清晰入镜，贴合与细节需实测。':'只替换所选品类，含模特原图的细节需要实测。');
+ setText('referenceNote',selected.note||(selected.views.length>1?'正反面分别应用单张图；背面不保证准确。':selected.category==='shoes'?'鞋类实验：需要双脚完整入镜。':selected.category==='accessories'?'配件实验：眼镜请让脸部清晰入镜，贴合与细节需实测。':'只替换所选品类，含模特原图的细节需要实测。'));
  setText('mirrorHint',{tops:'保持上半身完整入镜',bottoms:'让腰部和双腿完整入镜',shoes:'鞋类实验 · 双脚完整入镜',accessories:selected.id==='local-meta2'?'眼镜实验 · 脸部清晰入镜':'配件实验 · 佩戴区域完整入镜',outfit:'整套实验 · 全身完整入镜'}[selected.category]);
 }
 function showDraft(){$('promptEditor').value=draftPrompt();updateDraftState();}

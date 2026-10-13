@@ -65,3 +65,7 @@ TEST-008：用户在外部Chrome启动后首次attempt成功，2.19秒connected�
 修复DEV-009/DEC-015：错误原因映射为脱敏可操作提示，代码型CREDITS也可分类；每次连接独立保存提示，成功恢复后清除。断开处理延到微任务，在同轮sessionEnded先到时由结构化原因完成清理，迟到回调不能结束新连接。区分insufficient_credits、session_limit、内容策略和未知原因，未知值不写日志/界面。终止代码白名单进入本机日志，录像清理沿用既有stop。
 
 TEST-018三项新增回归/总24项通过，浏览器模拟SDK顺序genericStops=0，中英具体提示通过。程序修复通过；真实同类错误复测待现场，不能据旧日志认定今天额度不足，更没有账户余额数字。关联REQ-006/TEST-017/018，修复提交以本阶段Git历史追溯。
+
+## BUG-016 · P2 · 本机预置图片服务缺少JPEG声明 · 2026-10-13 · 程序通过
+
+新增James.jpg时发现服务mime表只有PNG/WebP，JPG会返回application/octet-stream并带nosniff。补齐.jpg/.jpeg→image/jpeg及扩展名小写匹配；本机真实JPEG路由200、图片预加载/小图/大图正常，既有server回归对所有可用本机摄影检查image响应通过。未将其误报为Decart API格式故障。关联DEV-010/TEST-019；修复版本本阶段Git提交。

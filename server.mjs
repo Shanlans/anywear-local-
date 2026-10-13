@@ -15,7 +15,7 @@ const maxSessionSeconds=Math.max(10, Math.min(1800,Number(process.env.MAX_SESSIO
 const client=process.env.DECART_API_KEY ? createDecartClient({apiKey:process.env.DECART_API_KEY}) : null;
 const webRoot=path.join(root,'dist');
 if(!fs.existsSync(path.join(webRoot,'index.html')))throw new Error('请先运行 npm run build');
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webp':'image/webp','.png':'image/png','.json':'application/json'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webp':'image/webp','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.json':'application/json'};
 let lastMint=0;
 const json=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(body));};
 const server=http.createServer(async(req,res)=>{
@@ -40,7 +40,7 @@ const server=http.createServer(async(req,res)=>{
     if(!permitted.includes(name))return json(res,404,{error:'图片不存在'});
     const target=path.join(root,'src/local-products',name);
     if(!fs.existsSync(target))return json(res,404,{error:'本机图片未安装'});
-    res.writeHead(200,{'Content-Type':mime[path.extname(target)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+    res.writeHead(200,{'Content-Type':mime[path.extname(target).toLowerCase()]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
     if(req.method==='HEAD')return res.end();return fs.createReadStream(target).pipe(res);
   }
   if(req.url==='/api/status' && req.method==='GET')return json(res,200,{configured:!!client,model,maxSessionSeconds});
@@ -67,7 +67,7 @@ const server=http.createServer(async(req,res)=>{
   try{pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}catch{return json(res,400,{error:'无效路径'});}
   const file=path.resolve(webRoot,'.'+(pathname==='/'?'/index.html':pathname));
   if(!file.startsWith(webRoot+path.sep))return json(res,403,{error:'访问被拒绝'});
-  try{const stat=fs.statSync(file);if(!stat.isFile())throw Error();res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);}catch{return json(res,404,{error:'文件不存在'});}
+  try{const stat=fs.statSync(file);if(!stat.isFile())throw Error();res.writeHead(200,{'Content-Type':mime[path.extname(file).toLowerCase()]||'application/octet-stream','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});if(req.method==='HEAD')return res.end();fs.createReadStream(file).pipe(res);}catch{return json(res,404,{error:'文件不存在'});}
 });
 server.listen(port,'127.0.0.1',()=>console.log(`Anywear 本地试衣已启动：http://localhost:${port}`));
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{server.close(()=>process.exit(0));});

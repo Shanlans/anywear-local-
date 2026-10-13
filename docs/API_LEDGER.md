@@ -42,7 +42,7 @@ token 请求必须包含 X-Anywear-Request: 1。后端拒绝其他 Host 与跨�
 | 能力 | 官方支持 | 本 Demo 状态 | 验证条件与限制 |
 | --- | --- | --- | --- |
 | 实时虚拟试衣 | 支持 | 官方 SDK 接入完成 | Chrome已出现真实远端首帧，服装效果待验收 |
-| 上衣 | 官方指南列出 | 两件真实上衣、三张原图，可上传 | 正面、上半身清晰入镜 |
+| 上衣 | 官方指南列出 | 三件真实上衣、四张原图，可上传 | 正面、上半身清晰入镜 |
 | 裤子与下装 | 官方指南列出 | 两件真实下装、两张原图，可上传 | 腰部与腿部完整入镜 |
 | 鞋子 | 官方指南明确列出 footwear | 一张本机原图，实验性标记 | 双脚完整入镜；本机效果尚未验证 |
 | 配件 | 官方指南概述及帽子/包/项链示例支持 | 新增配件分类、上传与黑框绿片太阳镜原图 | 本眼镜贴合/转头稳定性未验收，实验性；不新增专用API |
@@ -132,3 +132,7 @@ isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp
 本机安装SDK0.2.7的realtime/types.d.ts定义SessionEnded.reason：insufficient_credits、session_limit、moderation_violation、policy_violation及未知字符串；session_limit注释为并发会话上限。stream-session.js在endSession先改变disconnected状态，再发sessionEnded。以已安装官方SDK为本次接入依据，参见[官方SDK仓库](https://github.com/DecartAI/sdk)。网页现按固定原因显示脱敏提示并记录固定code，不能记录未知原始原因或账户金额。
 
 2026-10-10历史会话仅已有reason=credit分类和WEBRTC_SERVER_ERROR，没有采集当时sessionEnded.reason，不能区分实际额度不足/并发限制，更不能据此判定10月13日账户状态。当前配置检查HTTP200仍只表示后端已配置，未查询余额或创建生成会话。BUG-015修复具体原因被泛化覆盖，未声称供应商问题或账户额度已解决。
+
+## 球衣输入与JPEG · 2026-10-13
+
+新增James.jpg仍为上衣单image+prompt，不新增模型或收费服务。人物与球衣同图，默认仅请求转移球衣；参考图内人物/纹身/配饰/篮球不属于请求目标，模型是否遵循仍需实测。号码/文字不承诺精确还原。预置图片接口补齐.jpg/.jpeg的image/jpeg，扩展名匹配忽略大小写；前端上传本已支持JPEG，这次修复的是本机预置图响应声明。
