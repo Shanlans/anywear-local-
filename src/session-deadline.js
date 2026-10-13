@@ -5,7 +5,7 @@ export function sessionLimit(value){
 }
 // One deadline covers dialing, streaming, edits and reconnects.
 export class SessionDeadline {
- constructor({now=()=>performance.now(),schedule=setTimeout,cancel=clearTimeout}={}){this.now=now;this.schedule=schedule;this.cancel=cancel;this.version=0;this.until=null;this.timers=[];}
+ constructor({now=()=>performance.now(),schedule=(fn,ms)=>globalThis.setTimeout(fn,ms),cancel=id=>globalThis.clearTimeout(id)}={}){this.now=now;this.schedule=schedule;this.cancel=cancel;this.version=0;this.until=null;this.timers=[];}
  start({seconds,current,onWarn,onExpire}){
   this.clear();const version=this.version,limit=sessionLimit(seconds);this.until=this.now()+limit*1000;
   const valid=()=>version===this.version&&current();

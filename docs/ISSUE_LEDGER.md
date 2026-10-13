@@ -81,3 +81,7 @@ TEST-018三项新增回归/总24项通过，浏览器模拟SDK顺序genericStops
 ## BUG-018 · 测试子进程先退出导致清理等待遗漏 · 2026-10-13 · 通过
 
 严重性P2，仅测试工具。受限环境不能监听测试端口，子进程在finally前已退出；旧finally再次等待exit事件而挂起。先判断exitCode/signalCode，仅仍存活时注册退出监听并停止，修复版本DEV-013；允许本机端口环境31项回归通过。实际生产服务未受此测试工具问题影响。
+
+## BUG-019 · 浏览器计时器接收者导致30秒限制抛错 · 2026-10-13 · 修复／浏览器复测通过
+
+P1，DEV-014/TEST-026。自动录像合成浏览器测试发现SessionDeadline.start抛Illegal invocation：默认setTimeout/clearTimeout存为实例方法后以实例为this调用，部分浏览器要求Window接收者。此前Node假时钟未覆盖此约束，故31项程序通过不能证明浏览器截止可靠；之前的真实30秒截止仍未验收。改用显式globalThis包装，新增要求全局this的回归。没有发起收费生成。

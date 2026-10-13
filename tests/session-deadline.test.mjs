@@ -27,3 +27,12 @@ test('manual clear and a new deadline prevent a stale timer from stopping the ne
  deadline.start(options);time.advance(10000);deadline.clear();time.advance(20000);assert.equal(stops,0);assert.equal(warnings,0);
  deadline.start(options);time.advance(30000);assert.equal(stops,1);assert.equal(warnings,1);
 });
+test('default browser timer calls preserve the global receiver',()=>{
+ const savedSet=globalThis.setTimeout,savedClear=globalThis.clearTimeout,calls=[];let id=0;
+ try{
+  globalThis.setTimeout=function(fn,delay){assert.equal(this,globalThis);calls.push(delay);return ++id;};
+  globalThis.clearTimeout=function(timer){assert.equal(this,globalThis);calls.push('clear:'+timer);};
+  const deadline=new SessionDeadline();deadline.start({seconds:30,current:()=>true,onWarn(){},onExpire(){}});deadline.clear();
+  assert.deepEqual(calls,[25000,30000,'clear:1','clear:2']);
+ }finally{globalThis.setTimeout=savedSet;globalThis.clearTimeout=savedClear;}
+});
