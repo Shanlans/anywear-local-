@@ -19,6 +19,8 @@ const en={
 '原画＋AI左右对比 · 无声音':'Original + AI side by side · No audio',
 '当前浏览器不支持录像，请用Chrome重试。':'Recording unsupported. Try Chrome.',
 '正在生成可下载视频…':'Preparing a downloadable video…',
+'AI出现后自动录像':'Auto-record when AI appears',
+'AI出现后自动录像，结束后请下载。无声音。':'Recording starts when AI appears. Download after it ends. No audio.',
 '录像已就绪，请下载保存到本机。':'Recording ready. Download to save on this Mac.',
 '试衣已结束，录像已就绪。请下载保存。':'Try-on ended. Recording ready to download.',
 '画面中断，录像已收尾。请下载并检查。':'Video interrupted. Recording finalized; download and check it.',

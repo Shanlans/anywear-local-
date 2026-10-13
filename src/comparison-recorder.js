@@ -63,9 +63,9 @@ export class ComparisonRecorder{
  finish(){
   if(!this.recorder)return;const recorder=this.recorder;this.recorder=null;this.release();this.durationMs=this.env.performance.now()-this.startedAt;
   const mimeType=recorder.mimeType||recordingMime(this.env.MediaRecorder);const blob=this.bytes&&!this.failed&&!this.disposed?new this.env.Blob(this.chunks,{type:mimeType}):null;
-  this.chunks=[];this.state='idle';
+  this.chunks=[];this.state='idle';const resolveFinish=this.resolveFinish;this.resolveFinish=null;
   const clip=blob?{blob,mimeType,extension:mimeType.startsWith('video/mp4')?'mp4':'webm',durationMs:this.durationMs,reason:this.reason,width:this.layout.width,height:this.layout.height}:null;
-  if(!this.disposed){if(clip)this.onClip(clip);else this.onError('RECORDING_FAILED');this.emit();}this.resolveFinish?.(clip);this.resolveFinish=null;
+  if(!this.disposed){if(clip)this.onClip(clip);else this.onError('RECORDING_FAILED');this.emit();}resolveFinish?.(clip);
  }
  dispose(){this.disposed=true;this.stop('pagehide');this.release();}
 }

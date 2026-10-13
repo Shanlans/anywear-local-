@@ -49,3 +49,12 @@ test('lost frames keep a downloadable partial clip; page disposal suppresses new
 test('encoder failure exposes no successful clip and cleans its owned stream',async()=>{
  const f=fixture();f.recorder.start();f.state.native.onerror();assert.equal(await f.recorder.finished,null);assert.equal(f.state.clips.length,0);assert.deepEqual(f.state.errors,['RECORDING_FAILED']);assert.equal(f.source.stops,0);assert.equal(f.owned.stops,1);
 });
+test('a new automatic recording started by a completion callback retains its own completion promise',async()=>{
+ const f=fixture();let clips=0;
+ f.recorder.onClip=()=>{if(++clips===1)f.recorder.start();};
+ f.recorder.start();const first=f.recorder.stop('session-ended');
+ const clip=await Promise.race([first,new Promise(resolve=>{const timer=setTimeout(()=>resolve(null),50);timer.unref();})]);
+ assert.ok(clip);assert.equal(f.recorder.state,'recording');
+ let secondResolved=false;f.recorder.finished.then(()=>{secondResolved=true;});await Promise.resolve();assert.equal(secondResolved,false);
+ const second=await f.recorder.stop();assert.ok(second);assert.equal(clips,2);
+});
