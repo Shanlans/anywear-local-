@@ -1,0 +1,1 @@
+export function preferredCamera(devices,current,preferred){return devices.find(d=>d.deviceId===current)||devices.find(d=>d.deviceId===preferred)||devices.find(d=>/iphone/i.test(d.label))||devices[0]||null;}
