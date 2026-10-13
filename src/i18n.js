@@ -1,5 +1,12 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'Decart 返回额度不足，已结束会话；请在平台检查额度后再开始。':'Decart ended the session for insufficient credits. Check your platform credits before starting again.',
+'Decart 返回并发会话上限，已结束；请先结束其他试衣会话后再开始。':'Decart ended the session at the concurrency limit. End other sessions before starting again.',
+'Decart 因内容策略结束会话，请更换参考图或提示词后重试。':'Decart ended the session under its content policy. Change the reference or prompt and retry.',
+'Decart 已结束会话，可以重新预览。':'Decart ended the session. You can preview again.',
+'Decart 拒绝当前网页来源，请检查令牌来源配置。':'Decart rejected this page origin. Check the token origin configuration.',
+'当前试衣模型不可用，请检查模型配置与权限。':'The try-on model is unavailable. Check model configuration and permissions.',
+
 '开始对比录像':'Record comparison','停止录像':'Stop recording','正在生成录像…':'Finalizing recording…',
 '下载对比录像':'Download comparison','AI画面出现后可录像，无声音。':'Record once AI video appears. No audio.',
 '原画＋AI左右对比 · 无声音':'Original + AI side by side · No audio',

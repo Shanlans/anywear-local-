@@ -126,3 +126,9 @@ set 会整体替换模型状态，遗漏字段会被清除，因此每次切换�
 新增对比录像使用[浏览器MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)与[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)，不是Decart新增API。只合成本页现有原画与远端流，编码与下载在浏览器，不上传后端、不另开生成连接。试衣会话仍按已有规则运行，停止录像不停止生成；录像模块不参与费用计算。
 
 isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp8/video/webm；最终扩展名从实际recorder.mimeType决定。停止后等待最终dataavailable和stop事件，再生成下载Blob。浏览器或硬件失败显示可操作错误，不报告已保存。此次内置浏览器测试实际得到video/mp4;codecs=avc1，下载文件ftyp/isom有效；不把该结果当所有浏览器兼容保证，Chrome真人录制仍需用户验收。
+
+## SDK主动结束与错误分类复核 · 2026-10-13
+
+本机安装SDK0.2.7的realtime/types.d.ts定义SessionEnded.reason：insufficient_credits、session_limit、moderation_violation、policy_violation及未知字符串；session_limit注释为并发会话上限。stream-session.js在endSession先改变disconnected状态，再发sessionEnded。以已安装官方SDK为本次接入依据，参见[官方SDK仓库](https://github.com/DecartAI/sdk)。网页现按固定原因显示脱敏提示并记录固定code，不能记录未知原始原因或账户金额。
+
+2026-10-10历史会话仅已有reason=credit分类和WEBRTC_SERVER_ERROR，没有采集当时sessionEnded.reason，不能区分实际额度不足/并发限制，更不能据此判定10月13日账户状态。当前配置检查HTTP200仍只表示后端已配置，未查询余额或创建生成会话。BUG-015修复具体原因被泛化覆盖，未声称供应商问题或账户额度已解决。

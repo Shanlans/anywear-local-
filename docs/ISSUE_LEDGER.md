@@ -57,3 +57,11 @@ TEST-008：用户在外部Chrome启动后首次attempt成功，2.19秒connected�
 ## BUG-014 · P2 · 首次授权未自动沿用iPhone优先选择
 
 免费预览原先先开默认设备，授权后虽然列表优先iPhone，却用默认轨道设置覆盖选择，导致仍需手动切换。现在获取摄像头前刷新可用设备，优先当前明确选择、上次偏好、iPhone、默认；首次无明确偏好时，授权后若发现iPhone会在免费预览阶段重新获取，旧轨道关闭，迟到授权仍按cameraEpoch清理。独立设备优先级回归通过，实际首次授权流程待现场验证。运行中摄像头切换仍锁定，不自动更改活动模型输入。关联REQ-004/TEST-010。
+
+## BUG-015 · P1 · 额度/并发错误与SDK有意终止原因被覆盖 · 2026-10-13
+
+复查发现2026-10-10 11:24:02（Asia/Singapore）的真实会话先记录WEBRTC_SERVER_ERROR / reason=credit，随后disconnected触发泛化“连接已断开”。旧friendly仅对错误码中的QUOTA/LIMIT/CREDIT提示额度类错误，未采用已有reason=credit；通用WEBRTC_SERVER_ERROR因此遗漏。SDK0.2.7源码endSession先setState(disconnected)再emit(sessionEnded)，旧页面在disconnected立即取消lane，后续具体sessionEnded回调失效。这是界面错误保留和事件时序缺陷，不证明供应商或今日账户的具体问题。
+
+修复DEV-009/DEC-015：错误原因映射为脱敏可操作提示，代码型CREDITS也可分类；每次连接独立保存提示，成功恢复后清除。断开处理延到微任务，在同轮sessionEnded先到时由结构化原因完成清理，迟到回调不能结束新连接。区分insufficient_credits、session_limit、内容策略和未知原因，未知值不写日志/界面。终止代码白名单进入本机日志，录像清理沿用既有stop。
+
+TEST-018三项新增回归/总24项通过，浏览器模拟SDK顺序genericStops=0，中英具体提示通过。程序修复通过；真实同类错误复测待现场，不能据旧日志认定今天额度不足，更没有账户余额数字。关联REQ-006/TEST-017/018，修复提交以本阶段Git历史追溯。
