@@ -60,7 +60,7 @@ TEST-008：用户在外部Chrome启动后首次attempt成功，2.19秒connected�
 
 ## BUG-015 · P1 · 额度/并发错误与SDK有意终止原因被覆盖 · 2026-10-13
 
-复查发现2026-10-10 11:24:02（Asia/Singapore）的真实会话先记录WEBRTC_SERVER_ERROR / reason=credit，随后disconnected触发泛化“连接已断开”。旧friendly仅对错误码中的QUOTA/LIMIT/CREDIT提示额度类错误，未采用已有reason=credit；通用WEBRTC_SERVER_ERROR因此遗漏。SDK0.2.7源码endSession先setState(disconnected)再emit(sessionEnded)，旧页面在disconnected立即取消lane，后续具体sessionEnded回调失效。这是界面错误保留和事件时序缺陷，不证明供应商或今日账户的具体问题。
+复查发现2026-10-10 11:24:02（Asia/Singapore）的真实会话先记录WEBRTC_SERVER_ERROR / reason=credit，随后disconnected触发泛化“连接已断开”。旧friendly仅对错误码中的QUOTA/LIMIT/CREDIT提示额度类错误，未采用已有reason=credit；通用WEBRTC_SERVER_ERROR因此遗漏。SDK0.2.7源码finishTerminally先setState(disconnected)再emit(sessionEnded)，旧页面在disconnected立即取消lane，后续具体sessionEnded回调失效。这是界面错误保留和事件时序缺陷，不证明供应商或今日账户的具体问题。
 
 修复DEV-009/DEC-015：错误原因映射为脱敏可操作提示，代码型CREDITS也可分类；每次连接独立保存提示，成功恢复后清除。断开处理延到微任务，在同轮sessionEnded先到时由结构化原因完成清理，迟到回调不能结束新连接。区分insufficient_credits、session_limit、内容策略和未知原因，未知值不写日志/界面。终止代码白名单进入本机日志，录像清理沿用既有stop。
 
@@ -69,3 +69,11 @@ TEST-018三项新增回归/总24项通过，浏览器模拟SDK顺序genericStops
 ## BUG-016 · P2 · 本机预置图片服务缺少JPEG声明 · 2026-10-13 · 程序通过
 
 新增James.jpg时发现服务mime表只有PNG/WebP，JPG会返回application/octet-stream并带nosniff。补齐.jpg/.jpeg→image/jpeg及扩展名小写匹配；本机真实JPEG路由200、图片预加载/小图/大图正常，既有server回归对所有可用本机摄影检查image响应通过。未将其误报为Decart API格式故障。关联DEV-010/TEST-019；修复版本本阶段Git提交。
+
+## BUG-017 · P1 · 将SDK通用policy关闭误报为内容审核 · 2026-10-13 · 程序通过／现场待复测
+
+用户反馈“Decart因内容策略结束会话”。15:09现场日志在首帧前先有WEBRTC_SERVER_ERROR/reason=credit，再disconnected与SESSION_END_POLICY。DEV-009将moderation_violation和policy_violation映射为同一提示与同一诊断码，导致解释过强、信息丢失；这是本Demo错误，不是已证实的球衣审核拒绝。
+
+已核对安装SDK0.2.7：terminalReasonFromClose把通用WebSocket1008映射policy_violation；只有明确moderation_violation才是内容审核终止。旧日志因聚合同码，无法事后还原本次原始枚举；credit是固定分类，也不能区分具体余额/并发数字。不得用这些记录断言詹姆斯照片违规或今天余额为0。
+
+修复DEV-011/DEC-017：通用policy显示未知服务端规则，若此前有可信的额度/认证/来源/模型提示则保留；明确moderation仍单独显示内容审核。诊断码拆分SESSION_END_POLICY_GENERIC/SESSION_END_MODERATION；新增固定额度相关词，不存数字/账户身份/原始消息。新增三项回归，总27检查通过。当前可用额度等待用户在平台确认，不自动重试收费连接。修复版本本阶段Git提交，关联TEST-020/021。

@@ -11,8 +11,20 @@ test('generic WebRTC server errors retain credit/auth hints without displaying r
 test('structured termination separates insufficient credits from concurrency and masks unknown reasons',()=>{
  const credits=sessionEndInfo('insufficient_credits'),concurrency=sessionEndInfo('session_limit');
  assert.equal(credits.code,'SESSION_END_INSUFFICIENT_CREDITS');assert.equal(concurrency.code,'SESSION_END_CONCURRENCY_LIMIT');assert.notEqual(credits.message,concurrency.message);assert.equal(credits.error,true);
- assert.equal(sessionEndInfo('policy_violation').code,'SESSION_END_POLICY');
+ assert.equal(sessionEndInfo('policy_violation').code,'SESSION_END_POLICY_GENERIC');
  const unknown=sessionEndInfo('https://example.test/private-reason');assert.equal(unknown.code,'SESSION_END_UNKNOWN');assert.equal(unknown.message.includes('private'),false);assert.equal(unknown.error,false);
+});
+test('generic policy close keeps the preceding API cause and never asserts content moderation',()=>{
+ const hint=apiFailureHint({code:'WEBRTC_SERVER_ERROR',message:'Insufficient credits'}),info=sessionEndInfo('policy_violation',hint);
+ assert.equal(info.message,hint);assert.equal(info.reason,'credit');assert.equal(info.code,'SESSION_END_POLICY_GENERIC');
+ const generic=sessionEndInfo('policy_violation','private account value');assert.equal(generic.reason,'unknown');assert.equal(generic.message.includes('private'),false);assert.equal(generic.message.includes('内容'),false);
+});
+test('explicit moderation and structured credit reasons stay distinct from a generic 1008 close',()=>{
+ const hint=apiFailureHint({message:'Insufficient credits'});
+ assert.equal(sessionEndInfo('moderation_violation',hint).code,'SESSION_END_MODERATION');
+ assert.notEqual(sessionEndInfo('moderation_violation',hint).message,hint);
+ assert.equal(sessionEndInfo('insufficient_credits',hint).code,'SESSION_END_INSUFFICIENT_CREDITS');
+ assert.equal(sessionEndInfo('session_limit',hint).code,'SESSION_END_CONCURRENCY_LIMIT');
 });
 test('terminal session reason wins SDK disconnected ordering; cancelled runs and pending dials cannot be stopped late',()=>{
  let current=true,pending=false,hint=null;const jobs=[],calls=[];
@@ -21,4 +33,9 @@ test('terminal session reason wins SDK disconnected ordering; cancelled runs and
  current=true;hint='Decart 额度或并发不足，请检查账户。';schedule();jobs.shift()();assert.equal(calls.at(-1)[0],hint);
  const length=calls.length;pending=true;schedule();jobs.shift()();assert.equal(calls.length,length);
  pending=false;schedule();current=false;jobs.shift()();assert.equal(calls.length,length);
+});
+
+test('credit diagnostic vocabulary preserves a cause without amounts or personal identifiers',async()=>{
+ const {errorSignature}=await import('../src/diagnostics.js');
+ assert.equal(errorSignature(Error('Insufficient credits: balance 12.34 USD for user Alice')),'insufficient credits balance');
 });

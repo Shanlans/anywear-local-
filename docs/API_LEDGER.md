@@ -129,10 +129,14 @@ isTypeSupported检测容器支持，优先video/mp4，后退video/webm;codecs=vp
 
 ## SDK主动结束与错误分类复核 · 2026-10-13
 
-本机安装SDK0.2.7的realtime/types.d.ts定义SessionEnded.reason：insufficient_credits、session_limit、moderation_violation、policy_violation及未知字符串；session_limit注释为并发会话上限。stream-session.js在endSession先改变disconnected状态，再发sessionEnded。以已安装官方SDK为本次接入依据，参见[官方SDK仓库](https://github.com/DecartAI/sdk)。网页现按固定原因显示脱敏提示并记录固定code，不能记录未知原始原因或账户金额。
+本机安装SDK0.2.7的realtime/types.d.ts定义SessionEnded.reason：insufficient_credits、session_limit、moderation_violation、policy_violation及未知字符串；session_limit注释为并发会话上限。stream-session.js在finishTerminally先改变disconnected状态，再发sessionEnded。以已安装官方SDK为本次接入依据，参见[官方SDK仓库](https://github.com/DecartAI/sdk)。网页现按固定原因显示脱敏提示并记录固定code，不能记录未知原始原因或账户金额。
 
 2026-10-10历史会话仅已有reason=credit分类和WEBRTC_SERVER_ERROR，没有采集当时sessionEnded.reason，不能区分实际额度不足/并发限制，更不能据此判定10月13日账户状态。当前配置检查HTTP200仍只表示后端已配置，未查询余额或创建生成会话。BUG-015修复具体原因被泛化覆盖，未声称供应商问题或账户额度已解决。
 
 ## 球衣输入与JPEG · 2026-10-13
 
 新增James.jpg仍为上衣单image+prompt，不新增模型或收费服务。人物与球衣同图，默认仅请求转移球衣；参考图内人物/纹身/配饰/篮球不属于请求目标，模型是否遵循仍需实测。号码/文字不承诺精确还原。预置图片接口补齐.jpg/.jpeg的image/jpeg，扩展名匹配忽略大小写；前端上传本已支持JPEG，这次修复的是本机预置图响应声明。
+
+## policy枚举语义纠正 · 2026-10-13 · BUG-017
+
+安装SDK0.2.7的terminalReasonFromClose/terminalReasonFromError将WebSocket1008归policy_violation，不能等同于明确内容审核moderation_violation。旧Demo合并翻译与记录有误，现拆分诊断码及显示：通用关闭保留前置可信API提示，具体审核单独说明。15:09真实会话有先行credit类错误，无AI首帧，旧聚合码无法还原原始枚举；准确账户状态需用户查平台，不能据此要求换图或断言余额归零。没有发现也没有调用余额查询接口，没有自动重试收费生成。

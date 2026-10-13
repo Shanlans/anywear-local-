@@ -1,5 +1,8 @@
 // Canonical UI copy stays in Chinese. Runtime translations never rebuild video elements.
 const en={
+'Decart 按服务端规则结束连接，具体原因未提供。请检查账户或联系平台支持。':'Decart closed the connection under a server rule without a specific reason. Check your account or contact platform support.',
+'Decart 返回明确的内容审核终止，请检查参考图、提示词与平台使用规则。':'Decart explicitly ended the session through content moderation. Review the reference, prompt and platform usage rules.',
+
 '詹姆斯 湖人23号球衣':'James Lakers No. 23 jersey',
 '黄色无袖 · 紫白滚边 · 23号':'Yellow sleeveless · Purple/white trim · No. 23',
 '球衣参考含人物；只转移上衣，号码、文字与人物保持需实测。':'The jersey reference includes a person. Transfer only the top; lettering, number and identity preservation need live testing.',
